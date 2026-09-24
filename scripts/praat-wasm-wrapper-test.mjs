@@ -25,15 +25,17 @@ try {
     view.setInt32(inputStruct + 4, 1, true);
     view.setInt32(inputStruct + 8, samples, true);
     view.setFloat64(inputStruct + 16, 1 / sampleRate, true);
+    // Keep this ABI invocation byte-for-byte aligned with
+    // tests/praat-golden/manifest.json's spectrogram contract.
     const preflightStatus = module._praat_spectrogram_v1(
-      inputStruct, 0.03, 5_000, 0.002, 20, 4, 0, 0, meta,
+      inputStruct, 0.005, 5_000, 0.002, 20, 4, 0, 0, meta,
     );
     if (preflightStatus !== 3) throw new Error(`preflight status=${preflightStatus}`);
     const frames = view.getInt32(meta, true);
     const bins = view.getInt32(meta + 4, true);
     if (frames < 1 || bins < 1 || frames * bins > powerCapacity) throw new Error('invalid preflight metadata');
     const status = module._praat_spectrogram_v1(
-      inputStruct, 0.03, 5_000, 0.002, 20, 4, power, powerCapacity, meta,
+      inputStruct, 0.005, 5_000, 0.002, 20, 4, power, powerCapacity, meta,
     );
     if (status !== 0) throw new Error(`praat_spectrogram_v1 status=${status}`);
     const firstFrequency = view.getFloat64(meta + 24, true);

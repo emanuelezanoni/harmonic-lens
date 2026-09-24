@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Native pinned-Praat reference export. No source/audio download; inputs tracked.
 set -euo pipefail
-readonly praat_dir="reference/praat"
+readonly repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+readonly praat_dir="$repo_root/reference/praat"
 readonly praat_commit="6f3da9ef1d8cce0d5684afc104d02888dfc71b25"
-readonly fixture_dir="tests/praat-golden/fixtures"
-readonly output_dir="${PRAAT_GOLDEN_REFERENCE_DIR:-analysis-output/praat-reference}"
+readonly fixture_dir="$repo_root/tests/praat-golden/fixtures"
+readonly output_dir="${PRAAT_GOLDEN_REFERENCE_DIR:-$repo_root/analysis-output/praat-reference}"
+
+cd "$repo_root"
 
 npm run praat:fixtures:check
 if [[ ! -x "$praat_dir/praat_barren" ]]; then
@@ -16,7 +19,8 @@ if [[ "$actual_commit" != "$praat_commit" ]]; then
   echo "blocked: Praat pin mismatch: got $actual_commit, need $praat_commit" >&2
   exit 3
 fi
-if [[ -n "$(git -c safe.directory="$PWD/$praat_dir" -C "$praat_dir" status --porcelain)" ]]; then
+dirty_status="$(git -c safe.directory="$PWD/$praat_dir" -C "$praat_dir" status --porcelain | sed '/^?? praat_barren$/d')"
+if [[ -n "$dirty_status" ]]; then
   echo "blocked: pinned Praat checkout dirty: $praat_dir" >&2
   exit 4
 fi

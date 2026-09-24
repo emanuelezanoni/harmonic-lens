@@ -2,9 +2,12 @@
 # Emits plain TSV so native output and future WASM wrapper share comparison ABI.
 # Analysis settings intentionally duplicate tests/praat-golden/manifest.json.
 
-input$ = argument$ (1)
-outputDirectory$ = argument$ (2)
-Create Folder: outputDirectory$
+form Praat golden export
+	sentence inputPath
+	sentence outputDirectory
+endform
+
+input$ = inputPath$
 
 sound = Read from file: input$
 selectObject: sound

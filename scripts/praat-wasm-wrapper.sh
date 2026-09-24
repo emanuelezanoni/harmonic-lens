@@ -11,7 +11,8 @@ readonly expected_commit="6f3da9ef1d8cce0d5684afc104d02888dfc71b25"
 [[ -r "$zconf_header" ]] || { echo "blocked: zconf.h missing: $zconf_header" >&2; exit 126; }
 actual_commit="$(git -c safe.directory="$PWD/$praat_dir" -C "$praat_dir" rev-parse HEAD)"
 [[ "$actual_commit" == "$expected_commit" ]] || { echo "blocked: Praat pin mismatch: $actual_commit" >&2; exit 3; }
-[[ -z "$(git -c safe.directory="$PWD/$praat_dir" -C "$praat_dir" status --porcelain)" ]] || { echo "blocked: pinned checkout dirty" >&2; exit 4; }
+dirty_status="$(git -c safe.directory="$PWD/$praat_dir" -C "$praat_dir" status --porcelain | sed '/^?? praat_barren$/d')"
+[[ -z "$dirty_status" ]] || { echo "blocked: pinned checkout dirty" >&2; exit 4; }
 
 mkdir -p "$output_dir"
 zconf_dir="$(mktemp -d)"
