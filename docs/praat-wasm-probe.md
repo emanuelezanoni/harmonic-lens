@@ -2,7 +2,7 @@
 
 ## Result
 
-Status: blocked before compile. 2026-09-24 sandbox: no `emcc`/`em++` on `PATH`; no sanctioned sandbox installer exposed. Native pinned oracle runnable. This is not successful WASM port.
+Status: blocked during fresh Emscripten compile, 2026-09-24. `emcc`/`em++` 3.1.69 compile unmodified pinned sources to `wasm32-unknown-emscripten`; no `.js` or `.wasm` artifact produced. Probe cleans ignored native build products first, so host `.o`/`.a` files cannot be mistaken for WebAssembly output. `PRAAT_AUDIO=none` omits Linux audio link flags but does not define `NO_AUDIO`; probe adds `-DNO_AUDIO` through compiler commands, preserving upstream subdirectory `CPPFLAGS`. No upstream source changed.
 
 Pin: `praat/praat` `v7.0.02`, `6f3da9ef1d8cce0d5684afc104d02888dfc71b25`; ignored checkout `reference/praat/`. Target DSP: `fon/Sound_and_Spectrogram.cpp:Sound_to_Spectrogram_e`; `fon/Sound_to_Pitch.cpp:Sound_to_Pitch_rawAc` → `Sound_to_Pitch_any`.
 
@@ -14,18 +14,19 @@ Unmodified upstream + barren graphics + no audio + Emscripten compiler/linker su
 ./scripts/praat-wasm-probe.sh
 ```
 
-It checks tools + exact clean pin, then:
+It checks tools + exact clean pin, removes ignored build products, then:
 
 ```sh
+make -C reference/praat clean
 emmake make -C reference/praat \
   PRAAT_GRAPHICS=barren PRAAT_AUDIO=none PRAAT_COMPILER=clang \
-  CC=emcc CXX=em++ LINKER_COMMAND='em++ -sENVIRONMENT=node' -j"$(nproc)"
+  CC='emcc -DNO_AUDIO' CXX='em++ -DNO_AUDIO' LINKER_COMMAND='em++ -sENVIRONMENT=node' -j"$(nproc)"
 node reference/praat/praat_barren.js --run scripts/praat-native-probe.praat
 ```
 
 Success output shape: `spectrogram frames=... pitch frames=... Hz(frame 10)=...`. Proves upstream CLI Node-WASM only; not numeric parity, browser approval, wrapper validation. Save compiler version, command, `.js`/`.wasm` hashes, stdout under ignored `analysis-output/`.
 
-Likely first failure: Linux Makefile native flags (`-no-pie`, pthread assumptions); no `PRAAT_COMPILER=emcc` branch. Record full error. Do not patch upstream DSP. Build-system adaptation needs review, clean-pin rerun.
+Known blocker: upstream zlib configuration/dependency ordering; no `PRAAT_COMPILER=emcc` branch. Later Linux-native flags (`-no-pie`, pthread assumptions) remain untested. Record full error. Do not patch upstream DSP. Build-system adaptation needs review, clean-pin rerun.
 
 ## Proposed wrapper ABI
 
@@ -65,9 +66,24 @@ Native pinned `praat_barren`, 2026-09-24:
 spectrogram frames=498 pitch frames=97 Hz(frame 10)=220.000158637989
 ```
 
-Current exact WASM failure:
+Fresh Emscripten probe, 2026-09-24 (`emcc`/`em++` 3.1.69; Node v20.19.2):
 
 ```text
-blocked: Emscripten missing: need emcc and em++ on PATH
-install durable Emscripten SDK through sanctioned sandbox installer; rerun ./scripts/praat-wasm-probe.sh
+em++ -DNO_AUDIO ... -c -o melder_audio.o melder_audio.cpp
+... succeeds; Linux soundcard include is disabled.
+
+In file included from MelderReadText.cpp:21:
+./../external/zlib/zlib.h:38:11: fatal error: 'zconf.h' file not found
+   38 | # include "zconf.h"
+      |           ^~~~~~~~~
+make[1]: *** [<builtin>: MelderReadText.o] Error 1
+make: *** [Makefile:430: all-self] Error 2
 ```
+
+`external/zlib/zlib.h` expects host-provided `zconf.h`; Emscripten sysroot has
+none, and upstream checkout contains no `zconf.h`. Top-level `-j` builds
+`all-external` and `all-self` concurrently, so `melder` also has no declared
+dependency on `external/zlib`. Remaining parallel jobs were stopped after this
+decisive failure. Build-system adaptation or a reviewed generated Emscripten
+zlib config is required; do not patch upstream DSP. No `praat_barren.js` or
+`praat_barren.wasm` exists, therefore no WASM success claim.

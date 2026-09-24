@@ -27,11 +27,14 @@ if [[ -n "$(git -c safe.directory="$PWD/$praat_dir" -C "$praat_dir" status --por
   exit 4
 fi
 
-# Upstream has Linux GCC/Clang paths, no Emscripten target. Barren/audio-none
-# + compiler/linker substitution only: DSP stays upstream-identical.
+# Upstream has Linux GCC/Clang paths, no Emscripten target. Remove ignored
+# native objects first: make otherwise reuses them, which cannot prove an
+# Emscripten compile. Barren/audio-none + compiler/linker substitution only:
+# DSP stays upstream-identical.
+make -C "$praat_dir" clean
 emmake make -C "$praat_dir" \
   PRAAT_GRAPHICS=barren PRAAT_AUDIO=none PRAAT_COMPILER=clang \
-  CC=emcc CXX=em++ LINKER_COMMAND='em++ -sENVIRONMENT=node' \
+  CC='emcc -DNO_AUDIO' CXX='em++ -DNO_AUDIO' LINKER_COMMAND='em++ -sENVIRONMENT=node' \
   -j"$(nproc)"
 if [[ -f "$praat_dir/praat_barren.js" ]]; then
   node "$praat_dir/praat_barren.js" --run scripts/praat-native-probe.praat
