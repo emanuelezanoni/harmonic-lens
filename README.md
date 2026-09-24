@@ -65,12 +65,17 @@ is MVP browser analysis, not Praat-equivalent. `No pitch / low confidence`
 clears guide/peak values for current frame; disabled tracks also show `--`.
 No Praat source imported.
 
-Manual check: run `npm run dev`, permit microphone, sustain voice or tone near
-100–300 Hz, confirm faint guide trails, solid measured-peak marks, updating
-rows. Toggle H1/H8 via mouse or keyboard and confirm state becomes Off, values
-clear, new track pixels stop.
-Use silence/noise → `No pitch / low confidence` + `--` measurements. Repeat in
-browser and Electron (`npm run dev:desktop`).
+## Manual test checklist
+
+- Run `npm run dev`; grant microphone → `Listening`, nonzero frame rate, level,
+  sample rate, rolling spectrogram.
+- Sustain 100–300 Hz tone/voice → F0, H1–H8 rows, eight distinct track colours;
+  guides/peaks and values update.
+- Toggle H1 and H8 with mouse and keyboard → `Off`, `--` values, no new pixels;
+  toggle back → `On` and live values resume.
+- Use silence/noise → immediate `No pitch / low confidence` and `--` values.
+- Stop → capture ends, diagnostics reset, spectrogram clears; start again works.
+- Repeat permission/start/stop check in Electron: `npm run dev:desktop`.
 
 ## Desktop shell
 

@@ -37,6 +37,7 @@ let mediaStream: MediaStream | null = null;
 let sourceNode: MediaStreamAudioSourceNode | null = null;
 let workletNode: AudioWorkletNode | null = null;
 let silentSink: GainNode | null = null;
+let stopping: Promise<void> | null = null;
 let sampleRate = 0;
 let inputBuffer: number[] = [];
 let framesThisSecond = 0;
@@ -118,12 +119,31 @@ async function start(): Promise<void> {
 }
 
 async function stop(updateStatus = true): Promise<void> {
+  if (stopping) {
+    await stopping;
+    return;
+  }
+
+  stopping = stopInternal(updateStatus);
+  try {
+    await stopping;
+  } finally {
+    stopping = null;
+  }
+}
+
+async function stopInternal(updateStatus: boolean): Promise<void> {
+  stopButton.disabled = true;
   cancelAnimationFrame(animationFrame);
   workletNode?.disconnect();
   sourceNode?.disconnect();
   silentSink?.disconnect();
   mediaStream?.getTracks().forEach((track) => track.stop());
-  await audioContext?.close();
+  try {
+    await audioContext?.close();
+  } catch {
+    // Nodes/tracks already detached; continue UI cleanup after a close failure.
+  }
 
   audioContext = null;
   mediaStream = null;
@@ -136,6 +156,12 @@ async function stop(updateStatus = true): Promise<void> {
   peakLatencyMs = 0;
   lastPitch = null;
   lastMeasurements = emptyMeasurements();
+  sampleRate = 0;
+  sampleRateEl.textContent = "--";
+  framesPerSecondEl.textContent = "--";
+  latencyEl.textContent = "--";
+  levelEl.textContent = "--";
+  paintEmptySpectrogram();
   renderHarmonicPanel(null);
   startButton.disabled = false;
   stopButton.disabled = true;
@@ -187,6 +213,7 @@ function drawSpectrogramColumn(samples: number[]): void {
   }
 
   fft(real, imag);
+  const hadPitch = lastPitch !== null;
   const pitch = estimatePitch(real, imag);
   lastPitch = pitch;
   const measurements = measureHarmonics(pitch);
@@ -205,7 +232,8 @@ function drawSpectrogramColumn(samples: number[]): void {
   }
 
   drawHarmonicTracks(measurements);
-  if (performance.now() - lastPanelRender >= panelRefreshMs) {
+  // Clear stale values immediately on pitch loss; throttle normal live updates.
+  if ((pitch === null && hadPitch) || performance.now() - lastPanelRender >= panelRefreshMs) {
     renderHarmonicPanel(pitch, measurements);
     lastPanelRender = performance.now();
   }
