@@ -50,6 +50,17 @@ Use `localhost` or HTTPS: browsers block microphone access from insecure origins
 The capture graph terminates in a zero-gain node, so microphone input is never
 played through speakers.
 
+## Quick verification
+
+```sh
+npm run praat:fixtures:check
+npm run build
+```
+
+For live microphone behavior, run `npm run dev`, use localhost or HTTPS, then
+follow the manual checklist below. No browser/Electron runtime test is
+automated yet.
+
 ## Harmonic visualization MVP
 
 Eight stable-colour H1–H8 tracks roll with spectrogram. Faint one-pixel marks
@@ -119,6 +130,7 @@ kill can leave temporary files until OS cleanup.
 Validation:
 
 ```sh
+npm run praat:fixtures:check
 npm run build
 ```
 

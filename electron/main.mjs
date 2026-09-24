@@ -39,14 +39,23 @@ function createWindow() {
 app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     const pageUrl = webContents.getURL();
-    const trustedPage = pageUrl.startsWith("file:") || (devServerUrl !== undefined && pageUrl.startsWith(devServerUrl));
-    callback(permission === "media" && trustedPage);
+    const isMainWindow = webContents.id === mainWindow?.webContents.id;
+    const trustedPage = pageUrl.startsWith("file:") || (devServerUrl !== undefined && sameOrigin(pageUrl, devServerUrl));
+    callback(permission === "media" && isMainWindow && trustedPage);
   });
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+function sameOrigin(left, right) {
+  try {
+    return new URL(left).origin === new URL(right).origin;
+  } catch {
+    return false;
+  }
+}
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
