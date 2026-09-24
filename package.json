@@ -13,6 +13,7 @@
     "praat:fixtures:check": "node scripts/generate-praat-golden-fixtures.mjs --check",
     "praat:golden:native": "./scripts/praat-golden-native.sh",
     "praat:golden:compare": "node scripts/compare-praat-golden.mjs",
+    "praat:wasm:probe": "./scripts/praat-wasm-wrapper.sh && node scripts/praat-wasm-wrapper-test.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "package": "npm run build && electron-builder",

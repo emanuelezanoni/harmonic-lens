@@ -2,7 +2,7 @@
 
 ## Result
 
-Status: unresolved, 2026-09-24. `emcc`/`em++` 3.1.69 compile unmodified pinned sources to `wasm32-unknown-emscripten`; no `.js` or `.wasm` artifact yet. First fresh probe stopped at missing `zconf.h`. Revised probe isolates a supplied zlib `zconf.h`, preserves Emscripten sysroot headers, then stages upstream external libraries before Praat libraries. This passed prior early compile points; full link/runtime success remains required. Probe cleans ignored native build products first, so host `.o`/`.a` files cannot be mistaken for WebAssembly output. `PRAAT_AUDIO=none` omits Linux audio link flags but does not define `NO_AUDIO`; probe adds `-DNO_AUDIO` through compiler commands, preserving upstream subdirectory `CPPFLAGS`. No upstream source changed.
+Status: partial success, 2026-09-24. `emcc`/`em++` 3.1.69 builds direct reachable spectrogram closure into Node `.js`/`.wasm`; deterministic 220 Hz Float32 PCM smoke test returns real `Sound_to_Spectrogram_e` output. Full `praat_barren` remains blocked by an Emscripten clang frontend crash compiling unrelated `dwtools/FilterBank.cpp` at `-O3`. First fresh probe stopped at missing `zconf.h`. Revised probe isolates a supplied zlib `zconf.h`, preserves Emscripten sysroot headers, then stages upstream external libraries before Praat libraries. Probe cleans ignored native build products first, so host `.o`/`.a` files cannot be mistaken for WebAssembly output. `PRAAT_AUDIO=none` omits Linux audio link flags but does not define `NO_AUDIO`; probe adds `-DNO_AUDIO` through compiler commands, preserving upstream subdirectory `CPPFLAGS`. No upstream source changed.
 
 Pin: `praat/praat` `v7.0.02`, `6f3da9ef1d8cce0d5684afc104d02888dfc71b25`; ignored checkout `reference/praat/`. Target DSP: `fon/Sound_and_Spectrogram.cpp:Sound_to_Spectrogram_e`; `fon/Sound_to_Pitch.cpp:Sound_to_Pitch_rawAc` → `Sound_to_Pitch_any`.
 
@@ -39,9 +39,31 @@ probe only establishes compile feasibility. No `PRAAT_COMPILER=emcc` branch.
 Later Linux-native flags (`-no-pie`, pthread assumptions) remain untested.
 Record full error. Do not patch upstream DSP.
 
-## Proposed wrapper ABI
+## Direct spectrogram wrapper probe
 
-No wrapper source tracked/compiled. Opaque, malloc-free to JS, batch-only:
+`src/dsp/praat/praat_spectrogram_wrapper.cpp` is a new GPL-2.0-or-later C ABI
+adapter; it calls unmodified pinned `fon/Sound.cpp` and
+`fon/Sound_and_Spectrogram.cpp`. It accepts planar Float32 PCM, copies it to a
+Praat `Sound`, calls `Sound_to_Spectrogram_e`, then returns time-major power and
+grid metadata. It exports no Praat object, UI, filesystem, callback, or thread
+ABI. Output is ignored, auditable build evidence only:
+
+```sh
+npm run praat:wasm:probe
+```
+
+This links only archives reachable from the wrapper (`fon`, `stat`, `dwsys`,
+`sys`, `melder`, `kar`, `external/num`), after `praat-wasm-probe.sh` has built
+them. It deliberately excludes `dwtools`; full build currently dies in its
+unrelated `FilterBank.cpp` compiler crash. `scripts/praat-wasm-wrapper-test.mjs`
+generates 44,100 samples of 220 Hz PCM, invokes exported
+`praat_spectrogram_v1`, verifies valid grid/output capacity, and checks frame 10
+peak lies within one returned bin of 220 Hz. Current artifact paths:
+`analysis-output/praat-wasm-wrapper/praat-spectrogram.js` and `.wasm`.
+
+## Wrapper ABI
+
+Tracked C++ wrapper; batch-only C ABI. JS owns linear-memory allocation:
 
 ```c
 typedef struct { const float *samples; int32_t channel_count; int32_t sample_count;
@@ -52,7 +74,8 @@ typedef struct { int32_t frame_count; int32_t bin_count; double first_time_secon
 int32_t praat_spectrogram_v1(const praat_audio_input_v1 *,
   double analysis_width_seconds, double max_frequency_hz,
   double min_time_step_seconds, double min_frequency_step_hz,
-  int32_t window_shape, double *out_power, praat_spectrogram_meta_v1 *out_meta);
+  int32_t window_shape, double *out_power, int32_t out_power_capacity,
+  praat_spectrogram_meta_v1 *out_meta);
 int32_t praat_pitch_raw_ac_v1(const praat_audio_input_v1 *,
   double time_step_seconds, double floor_hz, double ceiling_hz,
   int32_t max_candidates, int32_t very_accurate, double silence_threshold,
@@ -61,7 +84,7 @@ int32_t praat_pitch_raw_ac_v1(const praat_audio_input_v1 *,
   int32_t out_frame_capacity, int32_t *out_frame_count);
 ```
 
-`0` success; nonzero stable wrapper error; never C++ exception. Planar channels. Caller allocates after sizing/known capacity. Reject nonfinite args, counts `< 1`, nonpositive interval, capacity mismatch. No Praat pointers, `std::string`, allocations, callbacks, threads, filesystem, UI, AudioWorklet cross ABI. `window_shape` = pinned `Sound_and_Spectrogram_enums.h` values only, copied with notice after probe.
+`0` success; nonzero stable wrapper error; never C++ exception. Planar channels. Call first with `out_power = NULL`, `out_power_capacity = 0`: status `3` plus required `out_meta.frame_count * bin_count`; allocate then call again. Reject nonfinite args, counts `< 1`, nonpositive interval, capacity mismatch. No Praat pointers, `std::string`, allocations, callbacks, threads, filesystem, UI, AudioWorklet cross ABI. `window_shape` = pinned `Sound_and_Spectrogram_enums.h` values only, copied with notice after probe.
 
 Future wrapper: headers/license notices for all included/adapted Praat files + path/pin per header. `src/dsp/praat/`; generated WASM untracked unless policy changes.
 
@@ -69,7 +92,31 @@ Future wrapper: headers/license notices for all included/adapted Praat files + p
 
 Spectrogram closure: [manifest](praat-spectrogram-manifest.md). Pitch closure still needs `fon/Sound_to_Pitch.{cpp,h}`, `fon/Sound_and_Spectrum.h`, `fon/Pitch.h`, `num/NUM2.h`, FFT, sampled hierarchy, candidate/path data, peak interpolation, Melder containers/errors/thread macros. Full barren build = lower-complexity first proof; selective pitch closure premature.
 
-## Evidence
+## Fresh WASM evidence
+
+Full CLI staging (`./scripts/praat-wasm-probe.sh`) built external archives and
+`fon/libfon.a`, then stopped in unrelated `dwtools`:
+
+```text
+clang++-19: error: clang frontend command failed with exit code 139
+... -O3 ... FilterBank.cpp -o FilterBank.o
+make[1]: *** [<builtin>: FilterBank.o] Error 1
+```
+
+Direct wrapper (`npm run praat:wasm:probe`) produced ignored
+`praat-spectrogram.js` (64,847 bytes) and `.wasm` (5,000,463 bytes), then:
+
+```text
+spectrogram frames=230 bins=464 peakHz=215.33203125 peakPower=53.7491368571116
+```
+
+Link warning remains: `wasm-ld-19: warning: function signature mismatch:
+GRAPHICS_PostScript_settings` between `sys/libsys.a(HyperPage.o)` and
+`sys/libsys.a(praat_picture.o)`. Smoke test passes; eliminate or scope warning
+before product use. Build also emits existing `melder_int.h` wasm32
+integer-range warnings.
+
+## Earlier evidence
 
 Native pinned `praat_barren`, 2026-09-24:
 
