@@ -64,15 +64,30 @@ npm run package
 ```
 
 `npm run package` config targets macOS ZIP, Windows portable `.exe`, Linux
-AppImage. Build host/package tooling determines which artifacts can be built;
-use platform-native CI or hosts for release validation. Linux-only package check:
+AppImage. Native release CI runs every target from same `src/` renderer via
+`npm run build` → `dist/`; it uploads these x64 artifacts:
+
+- `harmonic-lens-<version>-mac-x64.zip`
+- `harmonic-lens-<version>-win-x64.exe`
+- `harmonic-lens-<version>-linux-x64.AppImage`
+
+Push tag `v<version>` to create GitHub release containing all three. Unsigned
+artifacts may trigger macOS Gatekeeper, Windows SmartScreen, or Linux desktop
+trust warnings. macOS prompts for microphone permission; Windows/Linux prompt
+behavior depends on desktop/portal configuration. Deny/revoke permission → no
+live capture.
+
+Build host/package tooling determines which artifacts can be built; use
+platform-native CI or hosts for release validation. Linux-only package check:
 
 ```sh
 npm run package:linux
 ```
 
-macOS microphone access displays system permission prompt. Release signing and
-notarization are outside current packaging config.
+Release signing and notarization are outside current packaging config. Runtime
+profile/cache/session paths use OS temporary storage and delete on normal exit:
+no settings, recordings, or browser state intentionally persist. Crash/forced
+kill can leave temporary files until OS cleanup.
 
 Validation:
 

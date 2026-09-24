@@ -12,6 +12,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "package": "npm run build && electron-builder",
+    "package:mac": "npm run build && electron-builder --mac zip",
+    "package:win": "npm run build && electron-builder --win portable",
     "package:linux": "npm run build && electron-builder --linux AppImage"
   },
   "devDependencies": {
@@ -34,6 +36,7 @@
       "package.json"
     ],
     "asar": true,
+    "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
     "mac": {
       "target": [
         "zip"

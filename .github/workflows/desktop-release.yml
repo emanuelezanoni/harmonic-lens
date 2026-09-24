@@ -1,0 +1,63 @@
+name: Desktop build and release
+
+on:
+  pull_request:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS ZIP
+            os: macos-15-intel
+            command: npm run package:mac
+            artifact: harmonic-lens-*-mac-x64.zip
+          - label: Windows portable
+            os: windows-latest
+            command: npm run package:win
+            artifact: harmonic-lens-*-win-x64.exe
+          - label: Linux AppImage
+            os: ubuntu-latest
+            command: npm run package:linux
+            artifact: harmonic-lens-*-linux-x64.AppImage
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Every native target first builds identical src/ Vite renderer into dist/.
+      - run: ${{ matrix.command }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.label }}
+          path: release/${{ matrix.artifact }}
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
