@@ -2,7 +2,7 @@
 
 ## Result
 
-Status: blocked during fresh Emscripten compile, 2026-09-24. `emcc`/`em++` 3.1.69 compile unmodified pinned sources to `wasm32-unknown-emscripten`; no `.js` or `.wasm` artifact produced. Probe cleans ignored native build products first, so host `.o`/`.a` files cannot be mistaken for WebAssembly output. `PRAAT_AUDIO=none` omits Linux audio link flags but does not define `NO_AUDIO`; probe adds `-DNO_AUDIO` through compiler commands, preserving upstream subdirectory `CPPFLAGS`. No upstream source changed.
+Status: unresolved, 2026-09-24. `emcc`/`em++` 3.1.69 compile unmodified pinned sources to `wasm32-unknown-emscripten`; no `.js` or `.wasm` artifact yet. First fresh probe stopped at missing `zconf.h`. Revised probe isolates a supplied zlib `zconf.h`, preserves Emscripten sysroot headers, then stages upstream external libraries before Praat libraries. This passed prior early compile points; full link/runtime success remains required. Probe cleans ignored native build products first, so host `.o`/`.a` files cannot be mistaken for WebAssembly output. `PRAAT_AUDIO=none` omits Linux audio link flags but does not define `NO_AUDIO`; probe adds `-DNO_AUDIO` through compiler commands, preserving upstream subdirectory `CPPFLAGS`. No upstream source changed.
 
 Pin: `praat/praat` `v7.0.02`, `6f3da9ef1d8cce0d5684afc104d02888dfc71b25`; ignored checkout `reference/praat/`. Target DSP: `fon/Sound_and_Spectrogram.cpp:Sound_to_Spectrogram_e`; `fon/Sound_to_Pitch.cpp:Sound_to_Pitch_rawAc` → `Sound_to_Pitch_any`.
 
@@ -24,9 +24,20 @@ emmake make -C reference/praat \
 node reference/praat/praat_barren.js --run scripts/praat-native-probe.praat
 ```
 
+Requires readable zlib development `zconf.h` at `/usr/include/zconf.h` (observed
+SHA-256: `44e543ff4514c7a9a01d648019c2c9a81d1105cbfa3c77f1faf6cd86eafa8abd`), or set
+`PRAAT_ZCONF_HEADER=/absolute/path/to/zconf.h`. The script copies it into a
+temporary include directory; do not pass `CPPFLAGS=-I/usr/include`, because it
+shadows Emscripten sysroot libc headers. It runs `all-external`, `all-self`, then
+`praat_barren` sequentially: upstream `all` parallelizes first two despite
+undeclared archive/header ordering. This is build invocation adaptation only.
+
 Success output shape: `spectrogram frames=... pitch frames=... Hz(frame 10)=...`. Proves upstream CLI Node-WASM only; not numeric parity, browser approval, wrapper validation. Save compiler version, command, `.js`/`.wasm` hashes, stdout under ignored `analysis-output/`.
 
-Known blocker: upstream zlib configuration/dependency ordering; no `PRAAT_COMPILER=emcc` branch. Later Linux-native flags (`-no-pie`, pthread assumptions) remain untested. Record full error. Do not patch upstream DSP. Build-system adaptation needs review, clean-pin rerun.
+Known risk: host-generated `zconf.h` needs target review before product use;
+probe only establishes compile feasibility. No `PRAAT_COMPILER=emcc` branch.
+Later Linux-native flags (`-no-pie`, pthread assumptions) remain untested.
+Record full error. Do not patch upstream DSP.
 
 ## Proposed wrapper ABI
 
