@@ -37,22 +37,28 @@ docs/       decisions and experiments
 Requirements: Node.js 20 or newer.
 
 ```sh
-npm install
+npm ci
+npm run build
 npm run dev
 ```
 
-Open the Vite URL, press **Start microphone**, and allow microphone access.
+Open the printed `http://localhost:5173` URL, press **Start microphone**, and
+allow microphone access. Stop server with `Ctrl-C`.
 The first implementation uses browser-native Web Audio APIs and an original
 TypeScript FFT path for the live display; no Praat source has been imported yet.
 Use `localhost` or HTTPS: browsers block microphone access from insecure origins.
 The capture graph terminates in a zero-gain node, so microphone input is never
 played through speakers.
 
-Build check:
+Validation:
 
 ```sh
 npm run build
 ```
+
+No automated test suite exists yet; `npm test` is intentionally unavailable.
+Milestone 2 must add pinned-Praat parity fixtures/tests before derived DSP code
+is imported.
 
 ## Status
 
