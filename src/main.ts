@@ -26,6 +26,7 @@ let audioContext: AudioContext | null = null;
 let mediaStream: MediaStream | null = null;
 let sourceNode: MediaStreamAudioSourceNode | null = null;
 let workletNode: AudioWorkletNode | null = null;
+let silentSink: GainNode | null = null;
 let sampleRate = 0;
 let inputBuffer: number[] = [];
 let framesThisSecond = 0;
@@ -53,6 +54,13 @@ async function start(): Promise<void> {
   startButton.disabled = true;
 
   try {
+    if (!window.isSecureContext) {
+      throw new Error("Microphone access requires HTTPS or localhost.");
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("This browser does not support microphone capture.");
+    }
+
     mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: false,
@@ -64,11 +72,21 @@ async function start(): Promise<void> {
     audioContext = new AudioContext({ latencyHint: "interactive" });
     sampleRate = audioContext.sampleRate;
     await audioContext.audioWorklet.addModule("/audio-processor.js");
+    await audioContext.resume();
 
     sourceNode = audioContext.createMediaStreamSource(mediaStream);
     workletNode = new AudioWorkletNode(audioContext, "microphone-processor");
     workletNode.port.onmessage = (event: MessageEvent<WorkletMessage>) => handleAudioFrame(event.data);
+    workletNode.onprocessorerror = () => {
+      setStatus("Audio processor stopped unexpectedly.");
+      void stop(false);
+    };
+    // Keep graph rendered without passing microphone sound to speakers.
+    silentSink = audioContext.createGain();
+    silentSink.gain.value = 0;
     sourceNode.connect(workletNode);
+    workletNode.connect(silentSink);
+    silentSink.connect(audioContext.destination);
 
     setStatus("Listening");
     stopButton.disabled = false;
@@ -87,6 +105,7 @@ async function stop(updateStatus = true): Promise<void> {
   cancelAnimationFrame(animationFrame);
   workletNode?.disconnect();
   sourceNode?.disconnect();
+  silentSink?.disconnect();
   mediaStream?.getTracks().forEach((track) => track.stop());
   await audioContext?.close();
 
@@ -94,7 +113,10 @@ async function stop(updateStatus = true): Promise<void> {
   mediaStream = null;
   sourceNode = null;
   workletNode = null;
+  silentSink = null;
   inputBuffer = [];
+  framesThisSecond = 0;
+  lastFrameCounterUpdate = performance.now();
   peakLatencyMs = 0;
   startButton.disabled = false;
   stopButton.disabled = true;

@@ -44,6 +44,9 @@ npm run dev
 Open the Vite URL, press **Start microphone**, and allow microphone access.
 The first implementation uses browser-native Web Audio APIs and an original
 TypeScript FFT path for the live display; no Praat source has been imported yet.
+Use `localhost` or HTTPS: browsers block microphone access from insecure origins.
+The capture graph terminates in a zero-gain node, so microphone input is never
+played through speakers.
 
 Build check:
 
