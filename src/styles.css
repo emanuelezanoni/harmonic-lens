@@ -166,6 +166,8 @@ table { width: 100%; margin-top: 16px; border-collapse: collapse; text-align: le
 th, td { padding: 9px 8px; border-top: 1px solid #30363d; white-space: nowrap; }
 th { color: #9aa5af; font-size: 0.78rem; text-transform: uppercase; }
 .partial-label { color: var(--harmonic-color); font-weight: 800; }
+.harmonic-disabled { color: #9aa5af; }
+.harmonic-disabled .partial-label { color: #9aa5af; }
 
 .sr-only {
   position: absolute;

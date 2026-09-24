@@ -11,8 +11,8 @@ fundamental frequency (F0), and harmonic guides from the microphone.
 - Estimate F0 with browser-native spectral harmonic summation; show eight `n × F0` guides.
 - Keep visual latency below 100 ms where practical.
 
-Formant analysis (LPC/Burg) and measured harmonic peaks come after the core
-audio and rendering loop is stable.
+Formant analysis (LPC/Burg) comes after core audio, harmonic tracking, and
+rendering loop stabilize.
 
 ## Scope and licensing
 
@@ -52,16 +52,23 @@ played through speakers.
 
 ## Harmonic visualization MVP
 
-Eight stable-colour guide tracks (H1–H8) roll with the spectrogram. Each guide
-has an accessible toggle; enabled partials appear in live table with theoretical
-`n × F0`, nearest local FFT peak (within two bins), and approximate dBFS level.
-F0 uses bounded renderer-side spectral harmonic summation over 70–400 Hz. It is
-an MVP estimate, not Praat-equivalent analysis. `No pitch / low confidence`
-means display has no trusted F0 for current frame. No Praat source is imported.
+Eight stable-colour H1–H8 tracks roll with spectrogram. Faint one-pixel marks
+are theoretical `n × F0` guides; solid coloured caps around a guide/peak centre
+are independently measured local spectral peaks. Each measured peak searches
+±2 FFT bins around guide, then uses parabolic-bin refinement. Table keeps all eight track states;
+each accessible toggle controls one track and exposes `aria-pressed` state.
+Live columns separate guide frequency, measured-peak frequency, approximate
+dBFS level, and On/Off state.
+
+F0 uses bounded renderer-side spectral harmonic summation over 70–400 Hz. It
+is MVP browser analysis, not Praat-equivalent. `No pitch / low confidence`
+clears guide/peak values for current frame; disabled tracks also show `--`.
+No Praat source imported.
 
 Manual check: run `npm run dev`, permit microphone, sustain voice or tone near
-100–300 Hz, confirm coloured guide trails + updating rows. Toggle H1/H8 via
-mouse or keyboard and confirm matching row disappears and new guide pixels stop.
+100–300 Hz, confirm faint guide trails, solid measured-peak marks, updating
+rows. Toggle H1/H8 via mouse or keyboard and confirm state becomes Off, values
+clear, new track pixels stop.
 Use silence/noise → `No pitch / low confidence` + `--` measurements. Repeat in
 browser and Electron (`npm run dev:desktop`).
 

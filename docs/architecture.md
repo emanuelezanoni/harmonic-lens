@@ -22,3 +22,14 @@ preventing microphone monitoring/feedback.
 This code is original browser integration/DSP scaffolding. No Praat source is
 copied or adapted in Milestone 1; future Praat-derived files must follow the
 provenance header and isolation rules in `ROADMAP.md`.
+
+## Harmonic slice
+
+Each completed STFT frame feeds bounded F0 estimation and H1–H8 measurement.
+For each enabled partial, `n × F0` produces theoretical guide position. Peak
+search stays local (±2 FFT bins), applies parabolic-bin refinement, reports
+frequency + approximate dBFS, and draws separate solid caps around measured
+peak. Faint guide centre remains theoretical even when measured peak matches.
+Missing or
+low-confidence F0 produces no harmonic measurements; prior values never carry
+forward. This remains original browser DSP, not Praat-equivalent analysis.
