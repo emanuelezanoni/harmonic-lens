@@ -156,6 +156,7 @@ async function stopInternal(updateStatus: boolean): Promise<void> {
   peakLatencyMs = 0;
   lastPitch = null;
   lastMeasurements = emptyMeasurements();
+  lastPanelRender = 0;
   sampleRate = 0;
   sampleRateEl.textContent = "--";
   framesPerSecondEl.textContent = "--";
