@@ -13,6 +13,8 @@
 
 No Praat source is tracked or imported by this milestone.
 
+WASM build-probe status/instructions and proposed ABI: [Praat WebAssembly build probe](praat-wasm-probe.md). Probe uses local unmodified checkout; tracks no generated output or wrapper source.
+
 ## Target and port boundary
 
 - Target: [`fon/Sound_and_Spectrogram.cpp`](https://github.com/praat/praat/blob/6f3da9ef1d8cce0d5684afc104d02888dfc71b25/fon/Sound_and_Spectrogram.cpp), function `Sound_to_Spectrogram_e`.

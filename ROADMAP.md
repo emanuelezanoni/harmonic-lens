@@ -38,6 +38,7 @@ local browser session.
 
 ## Milestone 2 — Praat-derived spectrogram
 
+- Run pinned full-barren Emscripten probe before selecting/extracting WASM closure; see [`docs/praat-wasm-probe.md`](docs/praat-wasm-probe.md). Current sandbox blocker: no `emcc`/`em++`.
 - Port/adapt the selected Praat spectrogram path and dependencies into
   `src/dsp/praat/` (TypeScript or C++ compiled to WASM, based on the dependency map).
 - Compare time/frequency bins and levels with the pinned Praat reference.
@@ -49,6 +50,7 @@ renderer stays responsive.
 ## Milestone 3 — pitch and harmonics
 
 - Map `fon/Sound_to_Pitch.cpp` before implementation.
+- Extend dependency map only after full-barren Emscripten probe produces exact build evidence.
 - Port the minimal pitch path and publish F0 confidence.
 - Render eight `n × F0` guides, then measured spectral peaks.
 - Exercise octave jumps, breathy voice, low registers, and fast pitch changes.

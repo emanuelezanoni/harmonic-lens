@@ -4,6 +4,8 @@
 
 Native reference oracle only. No realtime bridge, Praat DSP rewrite, source import, or WASM port exists here.
 
+WASM compile investigation: [Praat WebAssembly build probe](praat-wasm-probe.md). Current status tool-blocked; native result below is not WASM evidence.
+
 Harmonic Lens needs these pinned-Praat operations:
 
 | UI need | Praat command | C++ entry point | Upstream source |
