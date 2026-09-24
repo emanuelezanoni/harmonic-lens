@@ -31,6 +31,31 @@ tests/      DSP and UI tests
 docs/       decisions and experiments
 ```
 
+## Local development
+
+Requirements: Node.js 20 or newer.
+
+```sh
+npm install
+npm run dev
+```
+
+Open the Vite URL, press **Start microphone**, and allow microphone access.
+The first implementation uses browser-native Web Audio APIs and an original
+TypeScript FFT path for the live display; no Praat source has been imported yet.
+
+Build check:
+
+```sh
+npm run build
+```
+
 ## Status
 
-Repository scaffolded. No application code yet.
+Milestone 1 foundation scaffolded:
+
+- TypeScript/Vite browser application.
+- Microphone capture through `getUserMedia`.
+- `AudioWorklet` frame forwarding.
+- Rolling Canvas spectrogram with visible sample-rate, frame-rate, latency, and
+  level diagnostics.

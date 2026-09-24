@@ -1,0 +1,266 @@
+import "./styles.css";
+
+type WorkletMessage = {
+  frame: Float32Array;
+  sampleRate: number;
+  timestamp: number;
+};
+
+const fftSize = 2048;
+const hopSize = 512;
+const minDb = -96;
+const maxDb = -18;
+
+const canvas = requiredElement<HTMLCanvasElement>("#spectrogram");
+const startButton = requiredElement<HTMLButtonElement>("#startButton");
+const stopButton = requiredElement<HTMLButtonElement>("#stopButton");
+const statusEl = requiredElement<HTMLElement>("#status");
+const permissionEl = requiredElement<HTMLElement>("#permission");
+const sampleRateEl = requiredElement<HTMLElement>("#sampleRate");
+const framesPerSecondEl = requiredElement<HTMLElement>("#framesPerSecond");
+const latencyEl = requiredElement<HTMLElement>("#latency");
+const levelEl = requiredElement<HTMLElement>("#level");
+const ctx = requiredCanvasContext(canvas);
+
+let audioContext: AudioContext | null = null;
+let mediaStream: MediaStream | null = null;
+let sourceNode: MediaStreamAudioSourceNode | null = null;
+let workletNode: AudioWorkletNode | null = null;
+let sampleRate = 0;
+let inputBuffer: number[] = [];
+let framesThisSecond = 0;
+let lastFrameCounterUpdate = performance.now();
+let peakLatencyMs = 0;
+let animationFrame = 0;
+
+const windowFn = makeHannWindow(fftSize);
+const real = new Float32Array(fftSize);
+const imag = new Float32Array(fftSize);
+
+paintEmptySpectrogram();
+updatePermissionStatus();
+
+startButton.addEventListener("click", () => {
+  void start();
+});
+
+stopButton.addEventListener("click", () => {
+  void stop();
+});
+
+async function start(): Promise<void> {
+  setStatus("Requesting microphone permission...");
+  startButton.disabled = true;
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    });
+
+    audioContext = new AudioContext({ latencyHint: "interactive" });
+    sampleRate = audioContext.sampleRate;
+    await audioContext.audioWorklet.addModule("/audio-processor.js");
+
+    sourceNode = audioContext.createMediaStreamSource(mediaStream);
+    workletNode = new AudioWorkletNode(audioContext, "microphone-processor");
+    workletNode.port.onmessage = (event: MessageEvent<WorkletMessage>) => handleAudioFrame(event.data);
+    sourceNode.connect(workletNode);
+
+    setStatus("Listening");
+    stopButton.disabled = false;
+    sampleRateEl.textContent = `${sampleRate.toLocaleString()} Hz`;
+    animationFrame = requestAnimationFrame(updateDiagnostics);
+    await updatePermissionStatus();
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : "Microphone start failed.");
+    startButton.disabled = false;
+    stopButton.disabled = true;
+    await stop(false);
+  }
+}
+
+async function stop(updateStatus = true): Promise<void> {
+  cancelAnimationFrame(animationFrame);
+  workletNode?.disconnect();
+  sourceNode?.disconnect();
+  mediaStream?.getTracks().forEach((track) => track.stop());
+  await audioContext?.close();
+
+  audioContext = null;
+  mediaStream = null;
+  sourceNode = null;
+  workletNode = null;
+  inputBuffer = [];
+  peakLatencyMs = 0;
+  startButton.disabled = false;
+  stopButton.disabled = true;
+
+  if (updateStatus) {
+    setStatus("Stopped");
+  }
+  await updatePermissionStatus();
+}
+
+function handleAudioFrame(message: WorkletMessage): void {
+  framesThisSecond += 1;
+  sampleRate = message.sampleRate;
+
+  const outputLatency = audioContext?.outputLatency ?? 0;
+  peakLatencyMs = Math.max(peakLatencyMs, Math.max(0, audioContext ? (audioContext.currentTime - message.timestamp + outputLatency) * 1000 : 0));
+
+  let sumSquares = 0;
+  for (const sample of message.frame) {
+    inputBuffer.push(sample);
+    sumSquares += sample * sample;
+  }
+
+  const rms = Math.sqrt(sumSquares / message.frame.length);
+  levelEl.textContent = `${Math.round(20 * Math.log10(Math.max(rms, 0.00001)))} dBFS`;
+
+  while (inputBuffer.length >= fftSize) {
+    drawSpectrogramColumn(inputBuffer.slice(0, fftSize));
+    inputBuffer = inputBuffer.slice(hopSize);
+  }
+}
+
+function updateDiagnostics(now = performance.now()): void {
+  if (now - lastFrameCounterUpdate >= 1000) {
+    framesPerSecondEl.textContent = `${framesThisSecond}`;
+    latencyEl.textContent = peakLatencyMs > 0 ? `${Math.round(peakLatencyMs)} ms` : "--";
+    framesThisSecond = 0;
+    peakLatencyMs = 0;
+    lastFrameCounterUpdate = now;
+  }
+
+  animationFrame = requestAnimationFrame(updateDiagnostics);
+}
+
+function drawSpectrogramColumn(samples: number[]): void {
+  for (let i = 0; i < fftSize; i += 1) {
+    real[i] = samples[i] * windowFn[i];
+    imag[i] = 0;
+  }
+
+  fft(real, imag);
+  const image = ctx.getImageData(1, 0, canvas.width - 1, canvas.height);
+  ctx.putImageData(image, 0, 0);
+
+  const nyquistBin = fftSize / 2;
+  for (let y = 0; y < canvas.height; y += 1) {
+    const bin = Math.min(nyquistBin - 1, Math.round(((canvas.height - 1 - y) / (canvas.height - 1)) * nyquistBin));
+    const magnitude = Math.hypot(real[bin], imag[bin]) / fftSize;
+    const db = 20 * Math.log10(Math.max(magnitude, 0.000001));
+    const color = colorForDb(db);
+    ctx.fillStyle = color;
+    ctx.fillRect(canvas.width - 1, y, 1, 1);
+  }
+}
+
+function fft(re: Float32Array, im: Float32Array): void {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i += 1) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) {
+      j ^= bit;
+    }
+    j ^= bit;
+    if (i < j) {
+      [re[i], re[j]] = [re[j], re[i]];
+      [im[i], im[j]] = [im[j], im[i]];
+    }
+  }
+
+  for (let len = 2; len <= n; len <<= 1) {
+    const angle = (-2 * Math.PI) / len;
+    const wLenRe = Math.cos(angle);
+    const wLenIm = Math.sin(angle);
+    for (let i = 0; i < n; i += len) {
+      let wRe = 1;
+      let wIm = 0;
+      for (let j = 0; j < len / 2; j += 1) {
+        const uRe = re[i + j];
+        const uIm = im[i + j];
+        const vRe = re[i + j + len / 2] * wRe - im[i + j + len / 2] * wIm;
+        const vIm = re[i + j + len / 2] * wIm + im[i + j + len / 2] * wRe;
+        re[i + j] = uRe + vRe;
+        im[i + j] = uIm + vIm;
+        re[i + j + len / 2] = uRe - vRe;
+        im[i + j + len / 2] = uIm - vIm;
+        const nextWRe = wRe * wLenRe - wIm * wLenIm;
+        wIm = wRe * wLenIm + wIm * wLenRe;
+        wRe = nextWRe;
+      }
+    }
+  }
+}
+
+function makeHannWindow(size: number): Float32Array {
+  const values = new Float32Array(size);
+  for (let i = 0; i < size; i += 1) {
+    values[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (size - 1)));
+  }
+  return values;
+}
+
+function colorForDb(db: number): string {
+  const normal = Math.min(1, Math.max(0, (db - minDb) / (maxDb - minDb)));
+  const hue = 245 - normal * 205;
+  const lightness = 8 + normal * 58;
+  return `hsl(${hue} 88% ${lightness}%)`;
+}
+
+function paintEmptySpectrogram(): void {
+  ctx.fillStyle = "#050608";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = "rgba(255,255,255,0.12)";
+  ctx.lineWidth = 1;
+
+  for (let i = 1; i < 6; i += 1) {
+    const y = (canvas.height / 6) * i;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y);
+    ctx.stroke();
+  }
+}
+
+async function updatePermissionStatus(): Promise<void> {
+  if (!navigator.permissions?.query) {
+    permissionEl.textContent = "prompt";
+    return;
+  }
+
+  try {
+    const permission = await navigator.permissions.query({ name: "microphone" as PermissionName });
+    permissionEl.textContent = permission.state;
+    permission.onchange = () => {
+      permissionEl.textContent = permission.state;
+    };
+  } catch {
+    permissionEl.textContent = "prompt";
+  }
+}
+
+function setStatus(message: string): void {
+  statusEl.textContent = message;
+}
+
+function requiredElement<T extends Element>(selector: string): T {
+  const element = document.querySelector<T>(selector);
+  if (!element) {
+    throw new Error(`Missing required element: ${selector}`);
+  }
+  return element;
+}
+
+function requiredCanvasContext(target: HTMLCanvasElement): CanvasRenderingContext2D {
+  const context = target.getContext("2d");
+  if (!context) {
+    throw new Error("Canvas 2D context unavailable.");
+  }
+  return context;
+}
