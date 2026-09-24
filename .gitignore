@@ -1,0 +1,20 @@
+# JavaScript / TypeScript
+node_modules/
+dist/
+coverage/
+.vite/
+
+# Local environment and editor state
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+.vscode/
+
+# Audio captures and generated analysis output
+*.wav
+*.mp3
+*.flac
+recordings/
+analysis-output/
