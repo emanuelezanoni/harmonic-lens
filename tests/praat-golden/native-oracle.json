@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "kind": "Praat native oracle output metadata",
+  "praat": {
+    "version": "v7.0.02",
+    "commit": "6f3da9ef1d8cce0d5684afc104d02888dfc71b25"
+  },
+  "source": {
+    "fixtureManifest": {
+      "path": "manifest.json",
+      "sha256": "4d0b861815806735db3c21adfb9addb04a171ad10de291619faec71f8a37890e"
+    },
+    "exporter": {
+      "path": "scripts/praat-golden-export.praat",
+      "sha256": "2c2a3d01946aa26547cad5c44cac4643f292aa68a527269b6a23469c72c784c3"
+    }
+  },
+  "wasmSpectrogramV1": {
+    "input": "planar Float32 PCM; channel-major; sample_interval_seconds = 1 / 44100",
+    "analysisWidthSeconds": 0.005,
+    "maxFrequencyHz": 5000,
+    "minTimeStepSeconds": 0.002,
+    "minFrequencyStepHz": 20,
+    "windowShape": 4,
+    "windowShapeLabel": "Hanning (sine-squared)"
+  },
+  "reproduce": "PRAAT_GOLDEN_REFERENCE_DIR=analysis-output/praat-reference npm run praat:golden:native",
+  "files": {
+    "harmonics-110-mono": {
+      "spectrogram.tsv": {
+        "bytes": 2924508,
+        "rows": 57768,
+        "sha256": "5b0e7d00f5f964ef295550b155aaf75bb6b450c6a5307c8ebef25ae9e196ebb7"
+      },
+      "pitch.tsv": {
+        "bytes": 3228,
+        "rows": 97,
+        "sha256": "0e5609ed5aedc38afd34b983a4b8b1b99d55b575272ec5d3ac570053b058c80f"
+      },
+      "harmonicity.tsv": {
+        "bytes": 3221,
+        "rows": 98,
+        "sha256": "bff92c19ad73a9ea9ee4eba26adbc80586a10a742f1dec77d51da3cd37be46da"
+      }
+    },
+    "silence-mono": {
+      "spectrogram.tsv": {
+        "bytes": 1772904,
+        "rows": 57768,
+        "sha256": "38a698c8c11acd2750654d1c7da71bd94517ee92dd55d48e4532b1623c624f0c"
+      },
+      "pitch.tsv": {
+        "bytes": 2791,
+        "rows": 97,
+        "sha256": "a63a7384cbee4dc9df88a880ec04d70b9c73943de417f3d030311c2c55a83d60"
+      },
+      "harmonicity.tsv": {
+        "bytes": 1948,
+        "rows": 98,
+        "sha256": "9331f718c7dfcf22380153f21e8dd31943d6d4ce63e7108a87086b8d032a02ed"
+      }
+    },
+    "sine-220-mono": {
+      "spectrogram.tsv": {
+        "bytes": 2917817,
+        "rows": 57768,
+        "sha256": "635d0dd1a883a0a6558941a958af1e0701190e69d19418bd0b7142285585af46"
+      },
+      "pitch.tsv": {
+        "bytes": 3257,
+        "rows": 97,
+        "sha256": "1a39fe68ab112fce21a34e1bcf495b937f1a9021e4cd63f1b11bbaf1a4c756ec"
+      },
+      "harmonicity.tsv": {
+        "bytes": 3242,
+        "rows": 98,
+        "sha256": "8a91ece28e3f5e62d2a91b84557a2ce6c352b332960c92fe05f865cf67d243db"
+      }
+    },
+    "sine-220-stereo-duplicate": {
+      "spectrogram.tsv": {
+        "bytes": 2917817,
+        "rows": 57768,
+        "sha256": "635d0dd1a883a0a6558941a958af1e0701190e69d19418bd0b7142285585af46"
+      },
+      "pitch.tsv": {
+        "bytes": 3257,
+        "rows": 97,
+        "sha256": "1a39fe68ab112fce21a34e1bcf495b937f1a9021e4cd63f1b11bbaf1a4c756ec"
+      },
+      "harmonicity.tsv": {
+        "bytes": 3242,
+        "rows": 98,
+        "sha256": "8a91ece28e3f5e62d2a91b84557a2ce6c352b332960c92fe05f865cf67d243db"
+      }
+    }
+  }
+}

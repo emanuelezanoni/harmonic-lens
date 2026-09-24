@@ -1,4 +1,5 @@
 # Pinned-Praat golden exporter. CLI args: input WAV, output directory.
+# --FULL-TRUST
 # Emits plain TSV so native output and future WASM wrapper share comparison ABI.
 # Analysis settings intentionally duplicate tests/praat-golden/manifest.json.
 
@@ -12,18 +13,24 @@ input$ = inputPath$
 sound = Read from file: input$
 selectObject: sound
 spectrogram = To Spectrogram: 0.005, 5000, 0.002, 20, "Hanning (sine-squared)"
+matrix = To Matrix
+selectObject: sound
 pitch = To Pitch (raw autocorrelation): 0.01, 75, 600, 15, "no", 0.03, 0.45, 0.01, 0.35, 0.14
+selectObject: sound
 harmonicity = To Harmonicity (cc): 0.01, 75, 0.1, 1
 
-selectObject: spectrogram
 spectrogramFile$ = outputDirectory$ + "/spectrogram.tsv"
-frames = Get number of columns
+selectObject: spectrogram
+frames = Get number of frames
+selectObject: matrix
 bins = Get number of rows
 writeFileLine: spectrogramFile$, "frame\ttime_seconds\tbin\tfrequency_hz\tpower"
 for frame to frames
-	time = Get x from column number: frame
+	selectObject: spectrogram
+	time = Get time from frame number: frame
+	selectObject: matrix
 	for bin to bins
-		frequency = Get y from row number: bin
+		frequency = (bin - 1) * 20
 		power = Get value in cell: bin, frame
 		appendFileLine: spectrogramFile$, frame, tab$, time, tab$, bin, tab$, frequency, tab$, power
 	endfor
@@ -49,4 +56,4 @@ for frame to frames
 	appendFileLine: harmonicityFile$, frame, tab$, time, tab$, db
 endfor
 
-removeObject: sound, spectrogram, pitch, harmonicity
+removeObject: sound, spectrogram, matrix, pitch, harmonicity
