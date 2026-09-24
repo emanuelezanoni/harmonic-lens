@@ -94,6 +94,50 @@ Spectrogram closure: [manifest](praat-spectrogram-manifest.md). Pitch closure st
 
 ## Fresh WASM evidence
 
+## Pitch linker/symbol evidence
+
+2026-09-24; one narrow `em++` link probe. It compiled a stdin-only function
+calling unmodified `Sound_to_Pitch_rawAc` (which calls `Sound_to_Pitch_any`),
+with the existing wrapper archive order and `-sERROR_ON_UNDEFINED_SYMBOLS=1`.
+No repo source, UI, package, or Praat source changed.
+
+`fon/libfon.a:Sound_to_Pitch.o` is exact entry object. It defines:
+
+```text
+Sound_to_Pitch_rawAc(structSound*, double, double, double, long, bool, double, double, double, double, double)
+Sound_to_Pitch_any(structSound*, int, double, double, double, double, long, double, double, double, double, double)
+```
+
+Direct required objects/symbols found in already-built archives:
+
+```text
+fon/libfon.a:Pitch.o                 Pitch_create, Pitch_Frame_init, Pitch_pathFinder
+fon/libfon.a:Sound.o                 Sound_extractChannel
+fon/libfon.a:Sound_and_Spectrum.o    Sound_to_Spectrum, Spectrum_to_Sound
+fon/libfon.a:Sampled.o               Sampled_shortTermAnalysis
+dwsys/libdwsys.a:NUMFourier.o        NUMfft_forward, NUMfft_backward, NUMFourierTable_create
+sys/libsys.a:Thing.o                 _Thing_forget
+melder/libmelder.a:MelderThread.o    MelderThread_run
+melder/libmelder.a:NUMinterpol.o     NUMimproveMaximum, NUM_interpolate_sinc
+melder/libmelder.a:NUMrandom.o       NUMrandom_getChannel, NUMrandom_setChannel
+melder/libmelder.a:NUM.o             NUMmean
+```
+
+Required archive set for attempted closure: `fon/libfon.a`, `stat/libstat.a`,
+`dwsys/libdwsys.a`, `sys/libsys.a`, `melder/libmelder.a`, `kar/libkar.a`,
+`external/num/libnum.a`. Link did not reach a meaningful transitive closure:
+all selected archive members, including `Sound_to_Pitch.o`, are x86-64 ELF.
+First fatal unresolved symbol:
+
+```text
+wasm-ld-19: error: /tmp/emscripten_temp_.../-_0.o: undefined symbol: _Thing_forget(structThing*)
+```
+
+`wasm-ld-19` also reports `Sound_to_Pitch.o` and other members as `neither Wasm
+object file nor LLVM bitcode`. Thus archive/symbol map identifies needed
+unmodified Praat closure, but cannot expose it in current wrapper until the
+same set is rebuilt for Emscripten. No pitch ABI implementation added.
+
 Full CLI staging (`./scripts/praat-wasm-probe.sh`) built external archives and
 `fon/libfon.a`, then stopped in unrelated `dwtools`:
 
