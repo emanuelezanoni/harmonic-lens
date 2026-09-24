@@ -50,6 +50,30 @@ Use `localhost` or HTTPS: browsers block microphone access from insecure origins
 The capture graph terminates in a zero-gain node, so microphone input is never
 played through speakers.
 
+## Desktop shell
+
+Electron packages same Vite renderer for macOS, Windows, Linux. Desktop runtime
+uses a unique OS-temporary directory for Chromium `userData`, cache, session
+data; deletes it on normal application exit. Harmonic Lens stores neither user
+configuration nor recordings.
+
+```sh
+npm ci
+npm run dev:desktop
+npm run package
+```
+
+`npm run package` config targets macOS ZIP, Windows portable `.exe`, Linux
+AppImage. Build host/package tooling determines which artifacts can be built;
+use platform-native CI or hosts for release validation. Linux-only package check:
+
+```sh
+npm run package:linux
+```
+
+macOS microphone access displays system permission prompt. Release signing and
+notarization are outside current packaging config.
+
 Validation:
 
 ```sh

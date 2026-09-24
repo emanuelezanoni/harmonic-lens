@@ -4,13 +4,55 @@
   "private": true,
   "license": "GPL-2.0-or-later",
   "type": "module",
+  "main": "electron/main.mjs",
+  "desktopName": "harmonic-lens",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "dev:desktop": "concurrently -k \"npm run dev\" \"wait-on http://127.0.0.1:5173 && electron . --dev-server-url=http://127.0.0.1:5173\"",
     "build": "tsc && vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "package": "npm run build && electron-builder",
+    "package:linux": "npm run build && electron-builder --linux AppImage"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
     "typescript": "^5.6.3",
-    "vite": "^8.3.1"
+    "vite": "^8.3.1",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "org.harmoniclens.app",
+    "productName": "Harmonic Lens",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "target": [
+        "zip"
+      ],
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Harmonic Lens uses your microphone to render a local live spectrogram."
+      }
+    },
+    "win": {
+      "target": [
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "AudioVideo",
+      "syncDesktopName": true
+    }
   }
 }

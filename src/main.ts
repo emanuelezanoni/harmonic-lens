@@ -71,7 +71,7 @@ async function start(): Promise<void> {
 
     audioContext = new AudioContext({ latencyHint: "interactive" });
     sampleRate = audioContext.sampleRate;
-    await audioContext.audioWorklet.addModule("/audio-processor.js");
+    await audioContext.audioWorklet.addModule(new URL("./audio-processor.js", window.location.href).toString());
     await audioContext.resume();
 
     sourceNode = audioContext.createMediaStreamSource(mediaStream);

@@ -1,6 +1,7 @@
 # JavaScript / TypeScript
 node_modules/
 dist/
+release/
 coverage/
 .vite/
 
