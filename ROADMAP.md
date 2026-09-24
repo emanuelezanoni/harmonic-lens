@@ -19,12 +19,12 @@ No source is copied until its dependency chain and provenance are understood.
 
 ## Milestone 0 — establish the reference baseline
 
-- Clone Praat into a non-versioned `reference/praat/` checkout at a pinned commit.
-- Map the minimal dependencies of `fon/Sound_and_Spectrogram.cpp`.
+- Clone Praat into a non-versioned `reference/praat/` checkout at a pinned commit. **Done:** `v7.0.02` / `6f3da9ef1d8cce0d5684afc104d02888dfc71b25`.
+- Map the minimal dependencies of `fon/Sound_and_Spectrogram.cpp`. **Done:** [`docs/praat-spectrogram-manifest.md`](docs/praat-spectrogram-manifest.md).
 - Collect short, consented test recordings and expected Praat analysis output.
 - Write a dependency/provenance manifest before porting a line.
 
-**Done when:** we can identify exactly what is needed for a spectrogram port.
+**Done when:** we can identify exactly what is needed for a spectrogram port. Dependency/provenance baseline complete; consented regression fixtures remain required before importing derived source.
 
 ## Milestone 1 — visible audio loop
 
@@ -64,7 +64,7 @@ latency (target: under 100 ms for visual feedback).
 
 ## First working session
 
-1. Pin the Praat upstream commit and create the dependency/provenance manifest.
+1. Pin Praat upstream commit and create dependency/provenance manifest. **Done:** see [`docs/praat-spectrogram-manifest.md`](docs/praat-spectrogram-manifest.md).
 2. Scaffold the microphone + Canvas loop without importing DSP code yet.
 3. Inspect the spectrogram dependency graph.
 4. Choose TypeScript port versus minimal C++/WASM bridge based on that graph.

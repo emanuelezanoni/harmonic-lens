@@ -18,3 +18,6 @@ coverage/
 *.flac
 recordings/
 analysis-output/
+
+# Pinned, local-only upstream source checkout; pin recorded in docs.
+/reference/

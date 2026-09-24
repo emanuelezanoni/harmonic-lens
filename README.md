@@ -22,6 +22,7 @@ must retain its upstream copyright notices and name its Praat source path and
 commit in a provenance header. The UI and browser integration remain original.
 
 See [ROADMAP.md](ROADMAP.md) for the extraction and validation plan.
+Pinned upstream provenance and spectrogram dependency boundary: [docs/praat-spectrogram-manifest.md](docs/praat-spectrogram-manifest.md). The local `reference/praat/` checkout is intentionally ignored.
 
 ## Planned structure
 
