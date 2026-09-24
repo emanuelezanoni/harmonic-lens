@@ -1,7 +1,7 @@
-# Real-time Vocal Analysis
+# Harmonic Lens
 
-A browser prototype for live vocal feedback: rolling spectrogram, fundamental
-frequency (F0), and harmonic guides from the microphone.
+A GPL-2.0-or-later browser tool for live vocal feedback: rolling spectrogram,
+fundamental frequency (F0), and harmonic guides from the microphone.
 
 ## MVP
 
@@ -16,12 +16,12 @@ audio and rendering loop is stable.
 
 ## Scope and licensing
 
-Praat is a research reference, not a code dependency. Its source is GPL-2.0-or-later;
-this project will independently implement the relevant DSP techniques (FFT/STFT,
-pitch tracking, optional LPC) or use appropriately licensed dependencies.
+Harmonic Lens will selectively port/adapt relevant GPL-2.0-or-later Praat DSP
+code. It is therefore licensed as GPL-2.0-or-later. Every derived source file
+must retain its upstream copyright notices and name its Praat source path and
+commit in a provenance header. The UI and browser integration remain original.
 
-Reference note: `../praat-realtime-vocal-analysis-research.md` in the shared
-Krusty Krab folder.
+See [ROADMAP.md](ROADMAP.md) for the extraction and validation plan.
 
 ## Planned structure
 
