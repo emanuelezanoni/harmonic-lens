@@ -126,6 +126,9 @@ No automated test suite exists yet; `npm test` is intentionally unavailable.
 Milestone 2 must add pinned-Praat parity fixtures/tests before derived DSP code
 is imported.
 
+Deterministic, repository-owned Praat parity fixtures and native/WASM TSV
+comparison contract: [docs/praat-golden.md](docs/praat-golden.md).
+
 ## Status
 
 Milestone 1 foundation scaffolded:

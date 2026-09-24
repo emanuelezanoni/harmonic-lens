@@ -9,6 +9,10 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "dev:desktop": "concurrently -k \"npm run dev\" \"wait-on http://127.0.0.1:5173 && electron . --dev-server-url=http://127.0.0.1:5173\"",
+    "praat:fixtures": "node scripts/generate-praat-golden-fixtures.mjs",
+    "praat:fixtures:check": "node scripts/generate-praat-golden-fixtures.mjs --check",
+    "praat:golden:native": "./scripts/praat-golden-native.sh",
+    "praat:golden:compare": "node scripts/compare-praat-golden.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "package": "npm run build && electron-builder",

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "ownership": "Generated from repository-authored mathematical formulae; no third-party audio.",
+  "format": {
+    "sampleRateHz": 44100,
+    "encoding": "WAV PCM signed 16-bit little-endian",
+    "durationSeconds": 1
+  },
+  "fixtures": [
+    {
+      "id": "sine-220-mono",
+      "channels": 1,
+      "formula": "0.5 * sin(2 * pi * 220 * sampleIndex / 44100)",
+      "sha256": "ae3920dd8e8469406790a9737e3a575c7507eff6525723aea9eb11fb62b3d719"
+    },
+    {
+      "id": "harmonics-110-mono",
+      "channels": 1,
+      "formula": "0.42*sin(2*pi*110*t) + 0.18*sin(2*pi*220*t) + 0.08*sin(2*pi*330*t)",
+      "sha256": "74a3e7f775bf1bd3e1a063a7a2051343648d7b0d61ac33e1fb2f47eaf65add3f"
+    },
+    {
+      "id": "sine-220-stereo-duplicate",
+      "channels": 2,
+      "formula": "Both channels: 0.5 * sin(2 * pi * 220 * sampleIndex / 44100)",
+      "sha256": "b957232173950379886d4c6e35d49001aeda6d6137eb8a549f2f415b16f87d74"
+    },
+    {
+      "id": "silence-mono",
+      "channels": 1,
+      "formula": "0",
+      "sha256": "3fa20276d8a4131431490ed129d0b05fafa4e9c82d4339b5cf635512103d6615"
+    }
+  ],
+  "analysis": {
+    "praatCommit": "6f3da9ef1d8cce0d5684afc104d02888dfc71b25",
+    "spectrogram": {
+      "windowLengthSeconds": 0.005,
+      "maximumFrequencyHz": 5000,
+      "timeStepSeconds": 0.002,
+      "frequencyStepHz": 20,
+      "windowShape": "Hanning (sine-squared)"
+    },
+    "pitchRawAutocorrelation": {
+      "timeStepSeconds": 0.01,
+      "floorHz": 75,
+      "ceilingHz": 600,
+      "maxCandidates": 15,
+      "veryAccurate": false,
+      "silenceThreshold": 0.03,
+      "voicingThreshold": 0.45,
+      "octaveCost": 0.01,
+      "octaveJumpCost": 0.35,
+      "voicedUnvoicedCost": 0.14
+    },
+    "harmonicityCc": {
+      "timeStepSeconds": 0.01,
+      "minimumPitchHz": 75,
+      "silenceThreshold": 0.1,
+      "periodsPerWindow": 1
+    }
+  },
+  "tolerances": {
+    "metadataExact": true,
+    "spectrogramPowerAbsolute": 1e-10,
+    "pitchHzAbsolute": 0.001,
+    "pitchStrengthAbsolute": 0.0001,
+    "harmonicityDbAbsolute": 0.001
+  }
+}

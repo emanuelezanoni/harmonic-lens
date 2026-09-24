@@ -20,5 +20,12 @@ coverage/
 recordings/
 analysis-output/
 
+# Deterministic, repository-owned golden fixtures. Regenerate with
+# `npm run praat:fixtures`; hashes in tests/praat-golden/manifest.json lock bytes.
+!tests/
+!tests/praat-golden/
+!tests/praat-golden/fixtures/
+!tests/praat-golden/fixtures/*.wav
+
 # Pinned, local-only upstream source checkout; pin recorded in docs.
 /reference/

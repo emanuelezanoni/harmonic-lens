@@ -21,7 +21,7 @@ No source is copied until its dependency chain and provenance are understood.
 
 - Clone Praat into a non-versioned `reference/praat/` checkout at a pinned commit. **Done:** `v7.0.02` / `6f3da9ef1d8cce0d5684afc104d02888dfc71b25`.
 - Map the minimal dependencies of `fon/Sound_and_Spectrogram.cpp`. **Done:** [`docs/praat-spectrogram-manifest.md`](docs/praat-spectrogram-manifest.md).
-- Collect short, consented test recordings and expected Praat analysis output.
+- Add deterministic legal fixtures + fixed native/WASM comparison contract. **Done:** [Praat golden foundation](docs/praat-golden.md). Consented voice recordings remain future, external-to-Git work.
 - Write a dependency/provenance manifest before porting a line.
 
 **Done when:** we can identify exactly what is needed for a spectrogram port. Dependency/provenance baseline complete; consented regression fixtures remain required before importing derived source.
