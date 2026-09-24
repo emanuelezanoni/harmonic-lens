@@ -116,6 +116,69 @@ canvas {
   background: #050608;
 }
 
+.harmonics {
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 16px;
+  background: #15191d;
+}
+
+.harmonics-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.harmonics-heading p { margin-top: 4px; }
+
+.harmonic-toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.harmonic-toggle {
+  min-height: 36px;
+  padding: 0 10px;
+  border-color: var(--harmonic-color);
+}
+
+.harmonic-toggle[aria-pressed="false"] {
+  color: #9aa5af;
+  border-style: dashed;
+  background: #202326;
+}
+
+.harmonic-dot {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  margin-right: 0.35em;
+  border-radius: 50%;
+  background: var(--harmonic-color);
+}
+
+.table-wrap { overflow-x: auto; }
+
+table { width: 100%; margin-top: 16px; border-collapse: collapse; text-align: left; }
+th, td { padding: 9px 8px; border-top: 1px solid #30363d; white-space: nowrap; }
+th { color: #9aa5af; font-size: 0.78rem; text-transform: uppercase; }
+.partial-label { color: var(--harmonic-color); font-weight: 800; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (max-width: 740px) {
   .topbar {
     align-items: stretch;
@@ -133,4 +196,6 @@ canvas {
   dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .harmonics-heading { flex-direction: column; }
 }

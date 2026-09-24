@@ -10,6 +10,11 @@ const fftSize = 2048;
 const hopSize = 512;
 const minDb = -96;
 const maxDb = -18;
+const partialCount = 8;
+const minPitchHz = 70;
+const maxPitchHz = 400;
+const pitchConfidenceThreshold = 0.18;
+const harmonicColors = ["#ff5c8a", "#ff9f43", "#f6d743", "#67d978", "#38c8e8", "#6395ff", "#a77bff", "#ef72e8"];
 
 const canvas = requiredElement<HTMLCanvasElement>("#spectrogram");
 const startButton = requiredElement<HTMLButtonElement>("#startButton");
@@ -20,6 +25,9 @@ const sampleRateEl = requiredElement<HTMLElement>("#sampleRate");
 const framesPerSecondEl = requiredElement<HTMLElement>("#framesPerSecond");
 const latencyEl = requiredElement<HTMLElement>("#latency");
 const levelEl = requiredElement<HTMLElement>("#level");
+const pitchStateEl = requiredElement<HTMLElement>("#pitchState");
+const harmonicTogglesEl = requiredElement<HTMLElement>("#harmonicToggles");
+const harmonicRowsEl = requiredElement<HTMLTableSectionElement>("#harmonicRows");
 const ctx = requiredCanvasContext(canvas);
 
 let audioContext: AudioContext | null = null;
@@ -33,12 +41,16 @@ let framesThisSecond = 0;
 let lastFrameCounterUpdate = performance.now();
 let peakLatencyMs = 0;
 let animationFrame = 0;
+const enabledPartials = Array.from({ length: partialCount }, () => true);
+let lastPitch: PitchEstimate | null = null;
 
 const windowFn = makeHannWindow(fftSize);
 const real = new Float32Array(fftSize);
 const imag = new Float32Array(fftSize);
 
 paintEmptySpectrogram();
+createHarmonicControls();
+renderHarmonicPanel(null);
 updatePermissionStatus();
 
 startButton.addEventListener("click", () => {
@@ -118,6 +130,8 @@ async function stop(updateStatus = true): Promise<void> {
   framesThisSecond = 0;
   lastFrameCounterUpdate = performance.now();
   peakLatencyMs = 0;
+  lastPitch = null;
+  renderHarmonicPanel(null);
   startButton.disabled = false;
   stopButton.disabled = true;
 
@@ -168,6 +182,8 @@ function drawSpectrogramColumn(samples: number[]): void {
   }
 
   fft(real, imag);
+  const pitch = estimatePitch(real, imag);
+  lastPitch = pitch;
   const image = ctx.getImageData(1, 0, canvas.width - 1, canvas.height);
   ctx.putImageData(image, 0, 0);
 
@@ -180,7 +196,134 @@ function drawSpectrogramColumn(samples: number[]): void {
     ctx.fillStyle = color;
     ctx.fillRect(canvas.width - 1, y, 1, 1);
   }
+
+  drawHarmonicGuides(pitch);
+  renderHarmonicPanel(pitch);
 }
+
+type PitchEstimate = { frequency: number; confidence: number };
+
+function estimatePitch(re: Float32Array, im: Float32Array): PitchEstimate | null {
+  const binHz = sampleRate / fftSize;
+  const minBin = Math.max(1, Math.ceil(minPitchHz / binHz));
+  const maxBin = Math.min(fftSize / 2 - 1, Math.floor(maxPitchHz / binHz));
+  let bestScore = -Infinity;
+  let secondScore = -Infinity;
+  let bestBin = 0;
+
+  // Spectral harmonic summation: bounded, renderer-side MVP F0 estimate.
+  for (let bin = minBin; bin <= maxBin; bin += 1) {
+    let score = 0;
+    let count = 0;
+    for (let harmonic = 1; harmonic <= partialCount && harmonic * bin < fftSize / 2; harmonic += 1) {
+      const center = harmonic * bin;
+      const magnitude = Math.max(
+        Math.hypot(re[center - 1], im[center - 1]),
+        Math.hypot(re[center], im[center]),
+        Math.hypot(re[center + 1], im[center + 1])
+      );
+      score += Math.log1p(magnitude) / harmonic;
+      count += 1 / harmonic;
+    }
+    score /= count;
+    if (score > bestScore) {
+      secondScore = bestScore;
+      bestScore = score;
+      bestBin = bin;
+    } else if (score > secondScore) {
+      secondScore = score;
+    }
+  }
+
+  const confidence = bestScore > 0 ? Math.max(0, (bestScore - secondScore) / bestScore) : 0;
+  if (!Number.isFinite(confidence) || confidence < pitchConfidenceThreshold) return null;
+  return { frequency: refinedPitchBin(bestBin, re, im) * binHz, confidence };
+}
+
+function refinedPitchBin(baseBin: number, re: Float32Array, im: Float32Array): number {
+  let weightedBin = 0;
+  let weightTotal = 0;
+  for (let harmonic = 1; harmonic <= partialCount && harmonic * baseBin < fftSize / 2 - 1; harmonic += 1) {
+    const center = harmonic * baseBin;
+    const left = Math.hypot(re[center - 1], im[center - 1]);
+    const middle = Math.hypot(re[center], im[center]);
+    const right = Math.hypot(re[center + 1], im[center + 1]);
+    const denominator = left - 2 * middle + right;
+    const offset = denominator === 0 ? 0 : Math.max(-0.5, Math.min(0.5, 0.5 * (left - right) / denominator));
+    const weight = middle / harmonic;
+    weightedBin += ((center + offset) / harmonic) * weight;
+    weightTotal += weight;
+  }
+  return weightTotal > 0 ? weightedBin / weightTotal : baseBin;
+}
+
+function drawHarmonicGuides(pitch: PitchEstimate | null): void {
+  if (!pitch) return;
+  for (let index = 0; index < partialCount; index += 1) {
+    if (!enabledPartials[index]) continue;
+    const frequency = (index + 1) * pitch.frequency;
+    if (frequency >= sampleRate / 2) continue;
+    const y = Math.round((1 - frequency / (sampleRate / 2)) * (canvas.height - 1));
+    ctx.fillStyle = harmonicColors[index];
+    ctx.fillRect(canvas.width - 1, Math.max(0, Math.min(canvas.height - 1, y)), 1, 1);
+  }
+}
+
+function createHarmonicControls(): void {
+  for (let index = 0; index < partialCount; index += 1) {
+    const partial = index + 1;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "harmonic-toggle";
+    button.style.setProperty("--harmonic-color", harmonicColors[index]);
+    button.setAttribute("aria-pressed", "true");
+    button.setAttribute("aria-label", `Toggle H${partial} harmonic guide`);
+    button.innerHTML = `<span class="harmonic-dot" aria-hidden="true"></span>H${partial}`;
+    button.addEventListener("click", () => {
+      enabledPartials[index] = !enabledPartials[index];
+      button.setAttribute("aria-pressed", String(enabledPartials[index]));
+      renderHarmonicPanel(lastPitch);
+    });
+    harmonicTogglesEl.append(button);
+  }
+}
+
+function renderHarmonicPanel(pitch: PitchEstimate | null): void {
+  pitchStateEl.textContent = pitch
+    ? `F0 ${formatHz(pitch.frequency)} Hz · confidence ${Math.round(pitch.confidence * 100)}%`
+    : "No pitch / low confidence";
+  harmonicRowsEl.replaceChildren();
+  for (let index = 0; index < partialCount; index += 1) {
+    if (!enabledPartials[index]) continue;
+    const partial = index + 1;
+    const theory = pitch ? partial * pitch.frequency : null;
+    const peak = theory ? localPeak(theory) : null;
+    const row = document.createElement("tr");
+    row.innerHTML = `<th scope="row" class="partial-label" style="--harmonic-color: ${harmonicColors[index]}">H${partial}</th><td>${theory ? `${formatHz(theory)} Hz` : "--"}</td><td>${peak ? `${formatHz(peak.frequency)} Hz` : "--"}</td><td>${peak ? `${formatDb(peak.db)} dBFS` : "--"}</td>`;
+    harmonicRowsEl.append(row);
+  }
+}
+
+function localPeak(targetHz: number): { frequency: number; db: number } | null {
+  if (targetHz >= sampleRate / 2) return null;
+  const targetBin = Math.round((targetHz / sampleRate) * fftSize);
+  const start = Math.max(1, targetBin - 2);
+  const end = Math.min(fftSize / 2 - 1, targetBin + 2);
+  let peakBin = start;
+  let peakMagnitude = 0;
+  for (let bin = start; bin <= end; bin += 1) {
+    const magnitude = Math.hypot(real[bin], imag[bin]);
+    if (magnitude > peakMagnitude) { peakMagnitude = magnitude; peakBin = bin; }
+  }
+  if (peakMagnitude === 0) return null;
+  const coherentGain = 0.5;
+  const amplitude = (2 * peakMagnitude) / (fftSize * coherentGain);
+  const db = 20 * Math.log10(Math.max(amplitude, 0.000001));
+  return db < minDb ? null : { frequency: (peakBin * sampleRate) / fftSize, db };
+}
+
+function formatHz(value: number): string { return value.toFixed(value < 100 ? 1 : 0); }
+function formatDb(value: number): string { return value.toFixed(1); }
 
 function fft(re: Float32Array, im: Float32Array): void {
   const n = re.length;

@@ -45,6 +45,25 @@
         </section>
 
         <canvas id="spectrogram" width="960" height="420" aria-label="Rolling spectrogram"></canvas>
+
+        <section class="harmonics" aria-labelledby="harmonics-title">
+          <div class="harmonics-heading">
+            <div>
+              <h2 id="harmonics-title">Harmonics</h2>
+              <p id="pitchState" role="status">No pitch detected</p>
+            </div>
+            <div id="harmonicToggles" class="harmonic-toggles" aria-label="Harmonic guide visibility"></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <caption class="sr-only">Live harmonic measurements</caption>
+              <thead>
+                <tr><th scope="col">Partial</th><th scope="col">Theory</th><th scope="col">Local peak</th><th scope="col">Level</th></tr>
+              </thead>
+              <tbody id="harmonicRows"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
     </main>
     <script type="module" src="/src/main.ts"></script>

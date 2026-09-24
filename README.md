@@ -8,7 +8,7 @@ fundamental frequency (F0), and harmonic guides from the microphone.
 - Capture microphone audio with `getUserMedia`.
 - Process frames in an `AudioWorklet` / ring buffer.
 - Render a 20–40 ms STFT spectrogram with a ~10 ms hop.
-- Estimate F0 and show eight `n × F0` harmonic guides.
+- Estimate F0 with browser-native spectral harmonic summation; show eight `n × F0` guides.
 - Keep visual latency below 100 ms where practical.
 
 Formant analysis (LPC/Burg) and measured harmonic peaks come after the core
@@ -49,6 +49,21 @@ TypeScript FFT path for the live display; no Praat source has been imported yet.
 Use `localhost` or HTTPS: browsers block microphone access from insecure origins.
 The capture graph terminates in a zero-gain node, so microphone input is never
 played through speakers.
+
+## Harmonic visualization MVP
+
+Eight stable-colour guide tracks (H1–H8) roll with the spectrogram. Each guide
+has an accessible toggle; enabled partials appear in live table with theoretical
+`n × F0`, nearest local FFT peak (within two bins), and approximate dBFS level.
+F0 uses bounded renderer-side spectral harmonic summation over 70–400 Hz. It is
+an MVP estimate, not Praat-equivalent analysis. `No pitch / low confidence`
+means display has no trusted F0 for current frame. No Praat source is imported.
+
+Manual check: run `npm run dev`, permit microphone, sustain voice or tone near
+100–300 Hz, confirm coloured guide trails + updating rows. Toggle H1/H8 via
+mouse or keyboard and confirm matching row disappears and new guide pixels stop.
+Use silence/noise → `No pitch / low confidence` + `--` measurements. Repeat in
+browser and Electron (`npm run dev:desktop`).
 
 ## Desktop shell
 
