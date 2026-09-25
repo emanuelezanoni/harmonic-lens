@@ -33,7 +33,15 @@ Native exporter writes, per fixture:
 <output>/<fixture>/harmonicity.tsv  frame time_seconds db
 ```
 
-Future wrapper must emit same TSV bytes for grid/index fields. Values compare
+The available spectrogram-only WASM artifact can be exported with:
+
+```sh
+npm run praat:wasm:spectrogram:export -- tests/praat-golden/fixtures/harmonics-110-mono.wav analysis-output/praat-wasm/harmonics-110-mono
+npm run praat:golden:compare -- --analysis spectrogram --fixture harmonics-110-mono --candidate analysis-output/praat-wasm
+```
+
+This deliberately wires only `spectrogram.tsv`; it neither exports nor makes a
+claim about pitch or harmonicity. Future wrapper output must emit same TSV bytes for grid/index fields. Values compare
 by manifest absolute tolerance. `NaN` must match `NaN`; no null/empty rewrite.
 Pitch strength is not exported: proposed WASM ABI has it, but native script
 contract has not pinned a corresponding winning-candidate strength query.
@@ -61,8 +69,14 @@ Then update manifest hashes/formula only after review.
 
 ## Current gaps
 
-No `praat_barren` artifact existed when this foundation was added; native
-export end-to-end result not yet recorded. No Emscripten-successful build, no
-WASM wrapper, no wrapper exporter, no wrapper values, no final tolerances, and
-no pitch-strength parity. These scripts define reproducible inputs and output
-ABI now; they do not claim numeric equivalence.
+The current host cannot rebuild the WASM module because `/usr/include/zconf.h`
+is absent, and cannot regenerate its native oracle because the checked-in
+`praat_barren` requires GLIBC 2.38. The existing wrapper artifact is still
+exportable. On 2026-09-25 its `harmonics-110-mono` TSV measured 498 frames ×
+58 bins (28,884 rows). The only local native TSV is incomplete (4,974 rows,
+where `native-oracle.json` requires 57,768), so the comparator correctly
+refuses a numerical verdict: `row count 28884, need 4974`. The smallest next
+step is to run the pinned native exporter with a `praat_barren` binary built
+against this host's glibc, then compare that complete output with the already
+exportable WASM TSV. No pitch, harmonicity, or pitch-strength parity is
+claimed.

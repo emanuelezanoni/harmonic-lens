@@ -7,14 +7,20 @@ const referenceDir = resolve(take('--reference', 'analysis-output/praat-referenc
 const candidateDir = args.includes('--candidate') ? resolve(take('--candidate')) : null;
 if (!candidateDir) throw new Error('usage: npm run praat:golden:compare -- --candidate <wrapper-output-dir> [--reference <native-dir>]');
 const manifest = JSON.parse(readFileSync('tests/praat-golden/manifest.json', 'utf8'));
-const analyses = [
+const allAnalyses = [
   ['spectrogram.tsv', 4, manifest.tolerances.spectrogramPowerAbsolute],
   ['pitch.tsv', 2, manifest.tolerances.pitchHzAbsolute],
   ['harmonicity.tsv', 2, manifest.tolerances.harmonicityDbAbsolute]
 ];
+const selectedAnalysis = take('--analysis', null);
+const analyses = selectedAnalysis ? allAnalyses.filter(([file]) => file === `${selectedAnalysis}.tsv`) : allAnalyses;
+if (!analyses.length) throw new Error(`unknown analysis: ${selectedAnalysis}`);
+const selectedFixture = take('--fixture', null);
+const fixtures = selectedFixture ? manifest.fixtures.filter(({ id }) => id === selectedFixture) : manifest.fixtures;
+if (!fixtures.length) throw new Error(`unknown fixture: ${selectedFixture}`);
 const rows = (path) => readFileSync(path, 'utf8').trimEnd().split('\n').slice(1).map((line) => line.split('\t').map(Number));
 let failures = 0;
-for (const fixture of manifest.fixtures) for (const [file, valueColumn, tolerance] of analyses) {
+for (const fixture of fixtures) for (const [file, valueColumn, tolerance] of analyses) {
   const expectedPath = `${referenceDir}/${fixture.id}/${file}`;
   const actualPath = `${candidateDir}/${fixture.id}/${file}`;
   if (!existsSync(expectedPath) || !existsSync(actualPath)) { console.error(`missing: ${!existsSync(expectedPath) ? expectedPath : actualPath}`); failures++; continue; }
