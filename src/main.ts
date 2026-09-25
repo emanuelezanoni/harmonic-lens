@@ -1,4 +1,5 @@
 import "./styles.css";
+import { AnalysisWindowBuffer } from "./dsp/spectrogram-backend";
 
 type WorkletMessage = {
   frame: Float32Array;
@@ -39,7 +40,7 @@ let workletNode: AudioWorkletNode | null = null;
 let silentSink: GainNode | null = null;
 let stopping: Promise<void> | null = null;
 let sampleRate = 0;
-let inputBuffer: number[] = [];
+let inputBuffer = new AnalysisWindowBuffer(fftSize, hopSize);
 let framesThisSecond = 0;
 let lastFrameCounterUpdate = performance.now();
 let peakLatencyMs = 0;
@@ -150,7 +151,7 @@ async function stopInternal(updateStatus: boolean): Promise<void> {
   sourceNode = null;
   workletNode = null;
   silentSink = null;
-  inputBuffer = [];
+  inputBuffer = new AnalysisWindowBuffer(fftSize, hopSize);
   framesThisSecond = 0;
   lastFrameCounterUpdate = performance.now();
   peakLatencyMs = 0;
@@ -182,17 +183,14 @@ function handleAudioFrame(message: WorkletMessage): void {
 
   let sumSquares = 0;
   for (const sample of message.frame) {
-    inputBuffer.push(sample);
     sumSquares += sample * sample;
   }
 
   const rms = Math.sqrt(sumSquares / message.frame.length);
   levelEl.textContent = `${Math.round(20 * Math.log10(Math.max(rms, 0.00001)))} dBFS`;
 
-  while (inputBuffer.length >= fftSize) {
-    drawSpectrogramColumn(inputBuffer.slice(0, fftSize));
-    inputBuffer = inputBuffer.slice(hopSize);
-  }
+  inputBuffer.push(message.frame);
+  inputBuffer.drain(sampleRate, ({ samples }) => drawSpectrogramColumn(samples));
 }
 
 function updateDiagnostics(now = performance.now()): void {
@@ -207,7 +205,7 @@ function updateDiagnostics(now = performance.now()): void {
   animationFrame = requestAnimationFrame(updateDiagnostics);
 }
 
-function drawSpectrogramColumn(samples: number[]): void {
+function drawSpectrogramColumn(samples: Float32Array): void {
   for (let i = 0; i < fftSize; i += 1) {
     real[i] = samples[i] * windowFn[i];
     imag[i] = 0;
