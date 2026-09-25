@@ -72,7 +72,9 @@ int32_t praat_spectrogram_v1 (
 		auto spectrogram = Sound_to_Spectrogram_e (
 			sound.get(), analysis_width_seconds, max_frequency_hz,
 			min_time_step_seconds, min_frequency_step_hz,
-			(kSound_to_Spectrogram_windowShape) window_shape, 4.0, 4.0
+			// Match `Sound: To Spectrogram...`; its public command uses 8x
+			// oversampling before snapping requested grid steps to FFT bins.
+			(kSound_to_Spectrogram_windowShape) window_shape, 8.0, 8.0
 		);
 		const int64_t values = (int64_t) spectrogram -> nx * spectrogram -> ny;
 		if (values > std::numeric_limits<int32_t>::max ())
