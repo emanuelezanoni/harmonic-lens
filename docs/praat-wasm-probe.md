@@ -105,6 +105,36 @@ than Wasm object/LLVM bitcode. `wasm-ld-19` first reports
 `neither Wasm object file nor LLVM bitcode`. Rebuild this exact closure for
 Emscripten before exposing `Sound_to_Pitch_rawAc` through a C ABI.
 
+## Harmonicity CC linker gate — 2026-09-25
+
+The golden manifest's harmonicity operation maps directly to
+`fon/Sound_to_Harmonicity.cpp:Sound_to_Harmonicity_cc` with exactly
+`dt=0.01`, `pitchFloor=75`, `silenceThreshold=0.1`, and
+`periodsPerWindow=1`. The entry first calls
+`Sound_to_Pitch_any (me, 3, periodsPerWindow, dt, pitchFloor, ...)`, then
+uses `Harmonicity_create`; so it needs the Pitch closure rather than a
+standalone HNR kernel.
+
+One `em++` link-only probe compiled a temporary function calling that entry
+against the same archive order as the existing wrapper. It made no source,
+UI, package, or Praat changes and did not run a full build. The decisive
+blocker is reproducible:
+
+```text
+reference/praat/fon/Sound_to_Harmonicity.o: ELF 64-bit LSB relocatable, x86-64
+reference/praat/fon/Sound_to_Pitch.o:       ELF 64-bit LSB relocatable, x86-64
+wasm-ld-19: warning: .../fon/libfon.a: archive member 'Harmonicity.o' is neither Wasm object file nor LLVM bitcode
+wasm-ld-19: warning: .../fon/libfon.a: archive member 'Sound_to_Pitch.o' is neither Wasm object file nor LLVM bitcode
+wasm-ld-19: warning: .../fon/libfon.a: archive member 'Sound_to_Harmonicity.o' is neither Wasm object file nor LLVM bitcode
+wasm-ld-19: error: .../probe_0.o: undefined symbol: _Thing_forget(structThing*)
+```
+
+The entry object's immediate unresolved map is `Sound_to_Pitch_any`,
+`Harmonicity_create`, and Praat/Melder error ownership (`_Thing_forget`),
+confirming that it is a Pitch-dependent closure. Rebuild the selected Praat
+archives for Emscripten before adding a harmonicity C ABI or smoke test; do
+not substitute or copy its DSP.
+
 ## Pitch linker/symbol evidence
 
 2026-09-24; one narrow `em++` link probe. It compiled a stdin-only function
