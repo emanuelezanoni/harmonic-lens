@@ -76,6 +76,15 @@ is MVP browser analysis, not Praat-equivalent. `No pitch / low confidence`
 clears guide/peak values for current frame; disabled tracks also show `--`.
 No Praat source imported.
 
+### Analysis presentation contract
+
+The H1–H8 renderer consumes `AnalysisResult` from
+[`src/analysis-result.ts`](src/analysis-result.ts): `f0Hz`, `confidence`,
+`hnrDb`, theoretical peak frequencies, and measured peak frequency/level
+pairs. The current FFT path adapts its result into that contract (with HNR
+unavailable); a Praat WASM producer can supply the same contract without a UI
+or track-rendering rewrite.
+
 ## Manual test checklist
 
 - Run `npm run dev`; grant microphone → `Listening`, nonzero frame rate, level,
