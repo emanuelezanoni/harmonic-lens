@@ -67,16 +67,11 @@ sha256sum tests/praat-golden/fixtures/*.wav
 
 Then update manifest hashes/formula only after review.
 
-## Current gaps
+## Gate 1 result
 
-The current host cannot rebuild the WASM module because `/usr/include/zconf.h`
-is absent, and cannot regenerate its native oracle because the checked-in
-`praat_barren` requires GLIBC 2.38. The existing wrapper artifact is still
-exportable. On 2026-09-25 its `harmonics-110-mono` TSV measured 498 frames ×
-58 bins (28,884 rows). The only local native TSV is incomplete (4,974 rows,
-where `native-oracle.json` requires 57,768), so the comparator correctly
-refuses a numerical verdict: `row count 28884, need 4974`. The smallest next
-step is to run the pinned native exporter with a `praat_barren` binary built
-against this host's glibc, then compare that complete output with the already
-exportable WASM TSV. No pitch, harmonicity, or pitch-strength parity is
-claimed.
+On 2026-09-25, fresh wrapper rebuild plus all fixture exports produced 498
+frames × 116 bins (57,768 rows) each. `praat:golden:compare` for spectrogram
+passes all four fixtures; worst absolute power delta is
+`7.105427357601002e-15`. TSV frequency labels intentionally use requested
+20 Hz ABI spacing, matching native exporter; internal FFT-bin spacing differs.
+No pitch, harmonicity, or pitch-strength parity is claimed.

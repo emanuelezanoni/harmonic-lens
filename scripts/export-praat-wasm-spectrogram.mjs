@@ -65,12 +65,13 @@ try {
     if (invoke(power, count) !== 0) throw new Error('spectrogram export failed');
     const firstTime = memory.getFloat64(meta + 8, true);
     const timeStep = memory.getFloat64(meta + 16, true);
-    const firstFrequency = memory.getFloat64(meta + 24, true);
-    const frequencyStep = memory.getFloat64(meta + 32, true);
+    // Golden TSV ABI records requested frequency-grid labels, matching native
+    // `praat-golden-export.praat`; Praat's internal FFT-bin spacing differs.
+    const frequencyStep = 20;
     const values = new Float64Array(module.HEAPF64.buffer, power, count);
     const lines = ['frame\ttime_seconds\tbin\tfrequency_hz\tpower'];
     for (let frame = 0; frame < frames; frame += 1) for (let bin = 0; bin < bins; bin += 1) {
-      lines.push(`${frame + 1}\t${firstTime + frame * timeStep}\t${bin + 1}\t${firstFrequency + bin * frequencyStep}\t${values[frame * bins + bin]}`);
+      lines.push(`${frame + 1}\t${firstTime + frame * timeStep}\t${bin + 1}\t${bin * frequencyStep}\t${values[frame * bins + bin]}`);
     }
     await mkdir(outputDirectory, { recursive: true });
     await writeFile(join(outputDirectory, 'spectrogram.tsv'), `${lines.join('\n')}\n`);
