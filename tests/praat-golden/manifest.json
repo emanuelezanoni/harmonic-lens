@@ -65,6 +65,6 @@
     "spectrogramPowerAbsolute": 1e-10,
     "pitchHzAbsolute": 0.001,
     "pitchStrengthAbsolute": 0.0001,
-    "harmonicityDbAbsolute": 0.001
+    "harmonicityDbAbsolute": 0.01
   }
 }
