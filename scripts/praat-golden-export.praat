@@ -29,11 +29,15 @@ for frame to frames
 	selectObject: spectrogram
 	time = Get time from frame number: frame
 	selectObject: matrix
+	# `appendFileLine` opens/closes output for every call.  One frame at a time
+	# keeps the exact row contract while making native export practical.
+	frameLines$ = ""
 	for bin to bins
 		frequency = (bin - 1) * 20
 		power = Get value in cell: bin, frame
-		appendFileLine: spectrogramFile$, frame, tab$, time, tab$, bin, tab$, frequency, tab$, power
+		frameLines$ += string$ (frame) + tab$ + string$ (time) + tab$ + string$ (bin) + tab$ + string$ (frequency) + tab$ + string$ (power) + newline$
 	endfor
+	appendFile: spectrogramFile$, frameLines$
 endfor
 
 selectObject: pitch
