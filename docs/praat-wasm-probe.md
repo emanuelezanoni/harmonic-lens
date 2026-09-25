@@ -94,6 +94,17 @@ Spectrogram closure: [manifest](praat-spectrogram-manifest.md). Pitch closure st
 
 ## Fresh WASM evidence
 
+## Pitch ABI gate — 2026-09-25
+
+The prerequisite pitch closure is still absent. Per the narrow-scope rule, no
+C ABI wrapper and no Node/WASM 220 Hz smoke probe were added or attempted.
+The next concrete blocker remains the incompatible archive format: the selected
+Praat closure, including `fon/libfon.a:Sound_to_Pitch.o`, is x86-64 ELF rather
+than Wasm object/LLVM bitcode. `wasm-ld-19` first reports
+`_Thing_forget(structThing*)` undefined and then rejects the archive members as
+`neither Wasm object file nor LLVM bitcode`. Rebuild this exact closure for
+Emscripten before exposing `Sound_to_Pitch_rawAc` through a C ABI.
+
 ## Pitch linker/symbol evidence
 
 2026-09-24; one narrow `em++` link probe. It compiled a stdin-only function
