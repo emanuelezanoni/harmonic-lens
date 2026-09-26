@@ -1,0 +1,4 @@
+# Emscripten JavaScript is shipped with a SHA-256 manifest. Never let a
+# Windows checkout rewrite LF to CRLF before the runtime integrity check.
+public/praat-wasm/*.js -text
+public/praat-wasm/*.wasm -text
