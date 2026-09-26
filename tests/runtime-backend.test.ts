@@ -42,6 +42,17 @@ test("runtime lifecycle closes pending analysis and ignores late Worker results"
   assert.deepEqual(states, ["ready", "closed"]);
 });
 
+test("worker failure rejects pending work and blocks later analysis", async () => {
+  const worker = new FakeWorker();
+  const backend = new PraatRuntimeBackend({ partialCount: 2, workerFactory: () => worker as unknown as Worker });
+  worker.emit({ type: "ready" });
+  const pending = backend.analyze({ samples: Float32Array.from([1, 2]), sampleRate: 48_000 });
+  worker.emitError("worker crashed");
+  await assert.rejects(pending, /worker crashed/);
+  await assert.rejects(backend.analyze({ samples: Float32Array.from([3, 4]), sampleRate: 48_000 }), /failed/);
+  assert.equal(worker.requests, 1);
+});
+
 class FakeWorker {
   onmessage: ((event: MessageEvent) => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
@@ -49,4 +60,5 @@ class FakeWorker {
   postMessage(message: { type: string }): void { if (message.type === "analyze") this.requests += 1; }
   terminate(): void {}
   emit(data: unknown): void { this.onmessage?.({ data } as MessageEvent); }
+  emitError(message: string): void { this.onerror?.({ message } as ErrorEvent); }
 }

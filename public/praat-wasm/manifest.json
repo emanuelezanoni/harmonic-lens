@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "praatCommit": "6f3da9ef1d8cce0d5684afc104d02888dfc71b25",
+  "emscriptenVersion": "3.1.69",
+  "artifacts": {
+    "praat-pitch-harmonicity.js": "63698692f243f2841ece3319e7c7f99fb12852511c6e9039d2c61b7e4b8db7ae",
+    "praat-pitch-harmonicity.wasm": "ae37dd6bc2ee810bd86f3174eeff821b48b1fcef3640d3bf9e0e7e35594ec22b",
+    "praat-spectrogram.js": "e8807f89ff58fae1378a41fb5d6c791295d6785615affbb51c324273b9c2718d",
+    "praat-spectrogram.wasm": "f120f26199886a619453f5a1fc7c19b53d81e82a64b19ccbbd01440180d3e51c"
+  }
+}

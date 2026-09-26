@@ -10,22 +10,24 @@ sample window every `hopSize` samples. Current settings are 2048 samples and a
 512-sample hop. Its capacity is two windows; under UI overload it discards the
 oldest samples, preserving recency instead of allowing unbounded queued audio.
 
-`PraatRuntimeBackend` now bundles `praat-analysis-worker.ts`; it instantiates
-configured pinned/verified artifact URLs only in that Worker. Default deployment URLs are
+`PraatRuntimeBackend` bundles `praat-analysis-worker.ts`; it instantiates
+configured pinned artifact URLs only in that Worker. Default deployment URLs are
 `/praat-wasm/praat-spectrogram.js` and
 `/praat-wasm/praat-pitch-harmonicity.js`. Release packaging must place their
-matching Emscripten `.wasm` files beside them. Generated artifacts remain
-ignored: provenance/pin rules in `praat-spectrogram-manifest.md` apply.
+matching Emscripten `.wasm` files beside them. Release artifacts are tracked in
+`public/praat-wasm/` and hash-locked by `public/praat-wasm/manifest.json`;
+source rebuild output remains ignored. Provenance/pin rules in
+`praat-spectrogram-manifest.md` apply.
 
 The backend copies before transfer, bounds in-flight analysis (default two),
 returns empty analysis on overload, and exposes `loading`, `ready`, `failed`,
 `overloaded`, `closed`. Worker calls use ABI preflight/capacity calls for
 spectrogram, raw-AC pitch, CC HNR; final analysis-window track values map to
-`AnalysisResult`. No `SharedArrayBuffer` dependency. Live renderer still uses
-browser FFT; wiring this backend into it is M3 work.
+`AnalysisResult`. No `SharedArrayBuffer` dependency. Live renderer uses this
+backend when ready for F0/HNR/measured peaks; browser FFT remains Canvas
+waterfall renderer and fallback during loading/failure/overload.
 
-Before switching the renderer, compare backend metadata (`frame_count`,
+Before replacing Canvas FFT waterfall, compare backend metadata (`frame_count`,
 `bin_count`, `first_frame_time_seconds`, `time_step_seconds`,
 `first_frequency_hz`, `frequency_step_hz`) and time-major power layout against
-the committed ABI/golden fixtures. Keep browser FFT as the active backend until
-those parity checks and an overload policy are accepted.
+the committed ABI/golden fixtures.

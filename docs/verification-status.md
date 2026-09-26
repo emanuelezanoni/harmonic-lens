@@ -1,38 +1,38 @@
 # Harmonic Lens verification status
 
-**Consolidated:** 2026-09-25 05:00 CEST. This is the single status surface
-for the native/WASM analysis boundary; detailed commands and evidence remain
-in the linked documents.
+**Release-candidate audit:** 2026-09-26. This page separates deterministic
+repository evidence from unrun manual/runtime checks.
 
-| Area | Status | What is verified | Boundary still not crossed |
+| Area | Status | Verified scope | Not verified / boundary |
 | --- | --- | --- | --- |
-| Native Praat oracle | **VERIFIED reference** | The pinned Praat `v7.0.02` / `6f3da9ef` contract, deterministic fixtures, and expected TSV file hashes/row counts are recorded in [`native-oracle.json`](../tests/praat-golden/native-oracle.json). It covers spectrogram, pitch, and CC harmonicity (HNR). | This host cannot regenerate the reference: its checked-in native binary needs GLIBC 2.38. Treat the JSON as the canonical native reference, not fresh local execution evidence. |
-| Praat WASM spectrogram | **VERIFIED parity** | Fresh Emscripten wrapper build, all four fixture exports (498 frames × 116 bins), and `praat:golden:compare -- --analysis spectrogram --candidate analysis-output/praat-wasm` pass. Worst absolute power delta: `7.105427357601002e-15`. | Pitch, HNR, browser integration, and realtime behavior remain outside this result. |
-| Praat WASM pitch / HNR | **UNVERIFIED / blocked** | The required raw-AC pitch and CC-harmonicity entry points and their dependency closure have been mapped. | The selected Praat archives are host x86-64 ELF, not Emscripten objects. Rebuild the exact closure for Emscripten before adding a pitch or HNR ABI, smoke test, or parity claim. HNR depends on pitch; there is no substitute kernel. |
-| Realtime integration | **UNVERIFIED / not integrated** | `AnalysisWindowBuffer`, the async `SpectrogramBackend` seam, and renderer-facing `AnalysisResult` contract exist. The live application still uses its browser FFT fallback. | No WASM artifact is loaded or called from the audio/UI/worker path. Keep the fallback active until spectrogram parity, metadata/layout checks, and an overload policy are accepted. |
+| Clean install/build | **VERIFIED in audit** | `npm ci`, tests, fixture hashes, staged-artifact hashes, TypeScript/Vite build. | Browser/Electron runtime not exercised. |
+| Browser WASM artifacts | **VERIFIED staged** | Four tracked `.js`/`.wasm` files are checked against committed SHA-256 manifest before every build; Vite copies `public/` into `dist/`. | Rebuilding needs ignored pinned Praat checkout + Emscripten 3.1.69. Manifest changes require review. |
+| Native Praat oracle | **VERIFIED reference** | Pinned `v7.0.02` / `6f3da9ef` fixture contract/hashes in [`native-oracle.json`](../tests/praat-golden/native-oracle.json). | Current host cannot regenerate native reference: checked-in binary needs GLIBC 2.38. |
+| WASM spectrogram | **VERIFIED parity** | Prior fixture comparison: four exports, 498 frames × 116 bins; worst absolute power delta `7.105427357601002e-15`. | Audit did not rebuild/recompare ignored Emscripten output. |
+| WASM pitch / HNR | **IMPLEMENTED, unverified audit parity** | Runtime Worker invokes raw-AC pitch and CC harmonicity ABI; deterministic wrapper scripts exist. | Audit did not rebuild or run comparators: ignored checkout/toolchain unavailable in clean clone. No live latency/quality claim. |
+| Live integration | **IMPLEMENTED, unverified runtime** | Worker lifecycle/overload/unit behavior covered by `npm test`; fallback remains. | No manual microphone/browser/Electron test performed. Canvas image still uses browser FFT. |
+| Electron security/lifecycle | **UNIT-VERIFIED policy** | Audio-only trusted-main-page permission policy; temporary profile cleanup path. | No packaged-app permission/quit test on desktop session. |
+| Linux AppImage | **VERIFIED in audit** | `npm run package:linux` creates unsigned x64 AppImage. | Install/launch/manual mic test not performed; desktop/portal behavior host-specific. |
 
-## Night review (00:00-05:00 CEST)
+## Commands
 
-- `312b82c`: added WASM spectrogram TSV export and comparator scoping.
-- `d40393a`: added the realtime spectrogram backend seam.
-- `cc80d2f`: added the renderer analysis-result contract.
-- `ec71b30`, `f26f756`: recorded the pitch and harmonicity linker gates.
+```sh
+npm ci
+npm test
+npm run praat:fixtures:check
+npm run praat:wasm:stage:check
+npm run build
+npm run package:linux
+```
 
-## Clean-clone check
+## Product boundary
 
-At commit `cc80d2f78acfe2bcd9f9e87e09b0523d18604989`, a fresh sandbox clone
-passed `npm ci`, `npm run build`, and `npm run praat:fixtures:check` on
-2026-09-25. `npm ci` emitted existing Node 20 versus `>=22.12.0`
-engine warnings from Electron rebuild dependencies; build and fixture hashes
-still passed. No package or upstream Praat action was run.
-
-## Next gate
-
-Gate 1 closed: spectrogram parity passes. Do not advance pitch, HNR, or
-realtime WASM integration on this basis.
+Roadmap Milestone 4 formant/session features are **not implemented**. This
+release candidate covers current microphone + harmonic-analysis application,
+not full M4 product completion. No claim of manual microphone validation.
 
 ## Evidence
 
-- Native contract and comparator: [`praat-golden.md`](praat-golden.md)
-- WASM probe and ABI gates: [`praat-wasm-probe.md`](praat-wasm-probe.md)
-- Realtime seam: [`realtime-wasm-integration.md`](realtime-wasm-integration.md)
+- [Native/WASM TSV contract](praat-golden.md)
+- [WASM provenance and ABI](praat-wasm-probe.md)
+- [Runtime design](realtime-wasm-integration.md)

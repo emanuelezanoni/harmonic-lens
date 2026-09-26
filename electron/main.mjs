@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { allowsMicrophonePermission } from "./security.mjs";
 
 const appDirectory = dirname(fileURLToPath(import.meta.url));
 const runtimeDirectory = await mkdtemp(join(tmpdir(), "harmonic-lens-"));
@@ -37,25 +38,21 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    const pageUrl = webContents.getURL();
-    const isMainWindow = webContents.id === mainWindow?.webContents.id;
-    const trustedPage = pageUrl.startsWith("file:") || (devServerUrl !== undefined && sameOrigin(pageUrl, devServerUrl));
-    callback(permission === "media" && isMainWindow && trustedPage);
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    callback(allowsMicrophonePermission({
+      permission,
+      pageUrl: webContents.getURL(),
+      requestWebContentsId: webContents.id,
+      mainWebContentsId: mainWindow?.webContents.id,
+      devServerUrl,
+      mediaTypes: details.mediaTypes
+    }));
   });
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
-
-function sameOrigin(left, right) {
-  try {
-    return new URL(left).origin === new URL(right).origin;
-  } catch {
-    return false;
-  }
-}
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
