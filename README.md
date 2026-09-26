@@ -19,7 +19,7 @@ spectrogram, Praat WASM F0/HNR/harmonic peak analysis, and eight harmonic guides
 
 ## Deterministic verification
 
-Requirements: Node.js 20+; Linux AppImage needs normal Electron Builder host
+Requirements: Node.js 22.12+; Linux AppImage needs normal Electron Builder host
 tools. Clean clone contains pinned browser artifacts in `public/praat-wasm/`.
 
 ```sh
