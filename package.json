@@ -19,7 +19,8 @@
     "praat:wasm:pitch-harmonicity": "./scripts/praat-wasm-pitch-harmonicity.sh && node scripts/praat-wasm-pitch-harmonicity-test.mjs",
     "praat:wasm:pitch-harmonicity:fixtures": "node scripts/export-praat-wasm-pitch-harmonicity-fixtures.mjs",
     "praat:wasm:pitch-harmonicity:compare": "npm run praat:wasm:pitch-harmonicity && npm run praat:wasm:pitch-harmonicity:fixtures && node scripts/compare-praat-golden.mjs -- --candidate analysis-output/praat-wasm-pitch-harmonicity --analysis pitch && node scripts/compare-praat-golden.mjs -- --candidate analysis-output/praat-wasm-pitch-harmonicity --analysis harmonicity",
-    "build": "tsc && vite build",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "build": "tsc && vite build && vite build --config vite.runtime.config.ts",
     "preview": "vite preview --host 0.0.0.0",
     "package": "npm run build && electron-builder",
     "package:mac": "npm run build && electron-builder --mac zip",
@@ -30,6 +31,7 @@
     "concurrently": "^9.1.2",
     "electron": "^37.2.6",
     "electron-builder": "^26.0.12",
+    "tsx": "^4.23.15",
     "typescript": "^5.6.3",
     "vite": "^8.3.1",
     "wait-on": "^8.0.1"

@@ -10,14 +10,19 @@ sample window every `hopSize` samples. Current settings are 2048 samples and a
 512-sample hop. Its capacity is two windows; under UI overload it discards the
 oldest samples, preserving recency instead of allowing unbounded queued audio.
 
-`SpectrogramBackend` is intentionally async: a future loader can instantiate
-the committed `praat_spectrogram_v1` artifact off the audio render callback,
-then send batches to a Worker or call WASM on a scheduled UI/worker task. It
-must map a copied `Float32Array` to the ABI's planar channel input and obey the
-two-call output-capacity protocol described in `praat-wasm-probe.md`. Output
-power buffers may be transferred from Worker to renderer only after the backend
-is ready; no `SharedArrayBuffer` dependency is assumed. The emitted input window
-is never transferred while the ring owns it, preventing detached-buffer bugs.
+`PraatRuntimeBackend` now bundles `praat-analysis-worker.ts`; it instantiates
+configured pinned/verified artifact URLs only in that Worker. Default deployment URLs are
+`/praat-wasm/praat-spectrogram.js` and
+`/praat-wasm/praat-pitch-harmonicity.js`. Release packaging must place their
+matching Emscripten `.wasm` files beside them. Generated artifacts remain
+ignored: provenance/pin rules in `praat-spectrogram-manifest.md` apply.
+
+The backend copies before transfer, bounds in-flight analysis (default two),
+returns empty analysis on overload, and exposes `loading`, `ready`, `failed`,
+`overloaded`, `closed`. Worker calls use ABI preflight/capacity calls for
+spectrogram, raw-AC pitch, CC HNR; final analysis-window track values map to
+`AnalysisResult`. No `SharedArrayBuffer` dependency. Live renderer still uses
+browser FFT; wiring this backend into it is M3 work.
 
 Before switching the renderer, compare backend metadata (`frame_count`,
 `bin_count`, `first_frame_time_seconds`, `time_step_seconds`,

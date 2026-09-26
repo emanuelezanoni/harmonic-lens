@@ -10,8 +10,10 @@ export type SpectrogramWindow = {
   sampleRate: number;
 };
 
+import type { AnalysisResult } from "../analysis-result";
+
 export interface SpectrogramBackend {
-  analyze(window: SpectrogramWindow): Promise<void>;
+  analyze(window: SpectrogramWindow): Promise<AnalysisResult>;
 }
 
 export type SpectrogramBackendLoader = () => Promise<SpectrogramBackend>;
