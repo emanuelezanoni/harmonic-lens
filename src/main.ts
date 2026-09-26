@@ -1,6 +1,7 @@
 import "./styles.css";
 import { emptyAnalysisResult, type AnalysisResult, type MeasuredPeak } from "./analysis-result";
 import { AnalysisWindowBuffer } from "./dsp/spectrogram-backend";
+import { PraatRuntimeBackend, type RuntimeBackendState } from "./dsp/praat-runtime-backend";
 
 type WorkletMessage = {
   frame: Float32Array;
@@ -39,6 +40,7 @@ let mediaStream: MediaStream | null = null;
 let sourceNode: MediaStreamAudioSourceNode | null = null;
 let workletNode: AudioWorkletNode | null = null;
 let silentSink: GainNode | null = null;
+let praatBackend: PraatRuntimeBackend | null = null;
 let stopping: Promise<void> | null = null;
 let sampleRate = 0;
 let inputBuffer = new AnalysisWindowBuffer(fftSize, hopSize);
@@ -50,6 +52,8 @@ const enabledPartials = Array.from({ length: partialCount }, () => true);
 let lastAnalysis: AnalysisResult = emptyAnalysisResult(partialCount);
 let lastMeasurements: HarmonicMeasurement[] = emptyMeasurements();
 let lastPanelRender = 0;
+// Results from a previous start must never paint into a restarted capture.
+let analysisGeneration = 0;
 
 const windowFn = makeHannWindow(fftSize);
 const real = new Float32Array(fftSize);
@@ -90,6 +94,7 @@ async function start(): Promise<void> {
 
     audioContext = new AudioContext({ latencyHint: "interactive" });
     sampleRate = audioContext.sampleRate;
+    createPraatBackend();
     await audioContext.audioWorklet.addModule(new URL("./audio-processor.js", window.location.href).toString());
     await audioContext.resume();
 
@@ -147,6 +152,10 @@ async function stopInternal(updateStatus: boolean): Promise<void> {
     // Nodes/tracks already detached; continue UI cleanup after a close failure.
   }
 
+  analysisGeneration += 1;
+  praatBackend?.close();
+  praatBackend = null;
+
   audioContext = null;
   mediaStream = null;
   sourceNode = null;
@@ -191,7 +200,7 @@ function handleAudioFrame(message: WorkletMessage): void {
   levelEl.textContent = `${Math.round(20 * Math.log10(Math.max(rms, 0.00001)))} dBFS`;
 
   inputBuffer.push(message.frame);
-  inputBuffer.drain(sampleRate, ({ samples }) => drawSpectrogramColumn(samples));
+  inputBuffer.drain(sampleRate, ({ samples }) => analyzeAndDrawWindow(samples));
 }
 
 function updateDiagnostics(now = performance.now()): void {
@@ -206,7 +215,29 @@ function updateDiagnostics(now = performance.now()): void {
   animationFrame = requestAnimationFrame(updateDiagnostics);
 }
 
-function drawSpectrogramColumn(samples: Float32Array): void {
+function createPraatBackend(): void {
+  const generation = analysisGeneration;
+  try {
+    praatBackend = new PraatRuntimeBackend({
+      partialCount,
+      onStateChange: (state, detail) => handlePraatState(state, detail, generation)
+    });
+  } catch (error) {
+    // Worker construction itself can fail (for example a hardened browser CSP).
+    praatBackend = null;
+    setStatus(`Listening · FFT fallback (${error instanceof Error ? error.message : "Praat unavailable"})`);
+  }
+}
+
+function handlePraatState(state: RuntimeBackendState, detail: string | undefined, generation: number): void {
+  if (generation !== analysisGeneration || !audioContext) return;
+  if (state === "ready") setStatus("Listening · Praat WASM");
+  else if (state === "loading") setStatus("Listening · loading Praat WASM (FFT fallback)");
+  else if (state === "failed") setStatus(`Listening · FFT fallback (${detail ?? "Praat failed"})`);
+  else if (state === "overloaded") setStatus("Listening · Praat catching up");
+}
+
+function analyzeAndDrawWindow(samples: Float32Array): void {
   for (let i = 0; i < fftSize; i += 1) {
     real[i] = samples[i] * windowFn[i];
     imag[i] = 0;
@@ -214,13 +245,11 @@ function drawSpectrogramColumn(samples: Float32Array): void {
 
   fft(real, imag);
   const hadPitch = lastAnalysis.f0Hz !== null;
-  const pitch = estimatePitch(real, imag);
-  // Current FFT estimator is a fallback producer. A Praat WASM backend can
-  // replace this call while keeping the renderer below unchanged.
-  const analysis = fallbackAnalysisResult(pitch);
-  lastAnalysis = analysis;
-  const measurements = measureHarmonics(analysis);
-  lastMeasurements = measurements;
+  // The canvas still needs a local FFT magnitude image. Its F0/peaks are used
+  // only while the asynchronously loaded Praat runtime cannot produce data.
+  const useFallback = praatBackend?.state !== "ready";
+  const analysis = useFallback ? fallbackAnalysisResult(estimatePitch(real, imag)) : lastAnalysis;
+  if (useFallback) applyAnalysis(analysis, hadPitch);
   const image = ctx.getImageData(1, 0, canvas.width - 1, canvas.height);
   ctx.putImageData(image, 0, 0);
 
@@ -234,10 +263,25 @@ function drawSpectrogramColumn(samples: Float32Array): void {
     ctx.fillRect(canvas.width - 1, y, 1, 1);
   }
 
-  drawHarmonicTracks(measurements);
+  drawHarmonicTracks(lastMeasurements);
+
+  if (!praatBackend || praatBackend.state !== "ready") return;
+  const generation = analysisGeneration;
+  void praatBackend.analyze({ samples, sampleRate }).then((result) => {
+    if (generation !== analysisGeneration) return;
+    applyAnalysis(result, lastAnalysis.f0Hz !== null);
+  }).catch(() => {
+    // A failed runtime transitions its state to failed; the next window uses
+    // the FFT fallback. Do not let an obsolete rejection alter a restart.
+  });
+}
+
+function applyAnalysis(analysis: AnalysisResult, hadPitch: boolean): void {
+  lastAnalysis = analysis;
+  lastMeasurements = measureHarmonics(analysis);
   // Clear stale values immediately on pitch loss; throttle normal live updates.
   if ((analysis.f0Hz === null && hadPitch) || performance.now() - lastPanelRender >= panelRefreshMs) {
-    renderHarmonicPanel(analysis, measurements);
+    renderHarmonicPanel(analysis, lastMeasurements);
     lastPanelRender = performance.now();
   }
 }

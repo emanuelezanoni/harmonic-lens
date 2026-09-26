@@ -17,6 +17,7 @@
     "praat:wasm:spectrogram:export": "node scripts/export-praat-wasm-spectrogram.mjs",
     "praat:wasm:probe": "./scripts/praat-wasm-wrapper.sh && node scripts/praat-wasm-wrapper-test.mjs",
     "praat:wasm:pitch-harmonicity": "./scripts/praat-wasm-pitch-harmonicity.sh && node scripts/praat-wasm-pitch-harmonicity-test.mjs",
+    "praat:wasm:stage": "node scripts/stage-praat-wasm.mjs",
     "praat:wasm:pitch-harmonicity:fixtures": "node scripts/export-praat-wasm-pitch-harmonicity-fixtures.mjs",
     "praat:wasm:pitch-harmonicity:compare": "npm run praat:wasm:pitch-harmonicity && npm run praat:wasm:pitch-harmonicity:fixtures && node scripts/compare-praat-golden.mjs -- --candidate analysis-output/praat-wasm-pitch-harmonicity --analysis pitch && node scripts/compare-praat-golden.mjs -- --candidate analysis-output/praat-wasm-pitch-harmonicity --analysis harmonicity",
     "test": "node --import tsx --test tests/*.test.ts",

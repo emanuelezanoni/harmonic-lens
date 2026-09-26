@@ -20,6 +20,6 @@ em++ -DNO_AUDIO -DUNIX -Dlinux -DNO_GRAPHICS -std=c++17 -O0 \
 	-I "$zconf_dir" -I "$praat_dir/fon" -I "$praat_dir/melder" -I "$praat_dir/sys" -I "$praat_dir/dwsys" -I "$praat_dir/stat" -I "$praat_dir/kar" \
 	src/dsp/praat/praat_pitch_harmonicity_wrapper.cpp \
 	"$praat_dir/fon/libfon.a" "$praat_dir/stat/libstat.a" "$praat_dir/dwsys/libdwsys.a" "$praat_dir/sys/libsys.a" "$praat_dir/melder/libmelder.a" "$praat_dir/kar/libkar.a" "$praat_dir/external/num/libnum.a" \
-	-sENVIRONMENT=node -sMODULARIZE=1 -sEXPORT_ES6=1 -sFILESYSTEM=0 \
+	-sENVIRONMENT=web,worker,node -sMODULARIZE=1 -sEXPORT_ES6=1 -sFILESYSTEM=0 \
 	-sEXPORTED_FUNCTIONS='["_malloc","_free","_praat_pitch_raw_ac_v1","_praat_harmonicity_cc_v1"]' \
 	-o "$output_dir/praat-pitch-harmonicity.js"

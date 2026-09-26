@@ -29,6 +29,19 @@ test("bounded overload drops newest request without unbounded Worker posts", asy
   assert.equal((await first).f0Hz, 120); assert.equal(backend.state, "ready");
 });
 
+test("runtime lifecycle closes pending analysis and ignores late Worker results", async () => {
+  const worker = new FakeWorker();
+  const states: string[] = [];
+  const backend = new PraatRuntimeBackend({ partialCount: 2, workerFactory: () => worker as unknown as Worker, onStateChange: (state) => states.push(state) });
+  worker.emit({ type: "ready" });
+  const pending = backend.analyze({ samples: Float32Array.from([1, 2]), sampleRate: 48_000 });
+  backend.close();
+  await assert.rejects(pending, /closed/);
+  worker.emit({ type: "result", id: 1, analysis: { f0Hz: 120, hnrDb: 10, measuredPeaks: [] } });
+  assert.equal(backend.state, "closed");
+  assert.deepEqual(states, ["ready", "closed"]);
+});
+
 class FakeWorker {
   onmessage: ((event: MessageEvent) => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
