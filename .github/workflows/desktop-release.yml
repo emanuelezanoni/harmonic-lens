@@ -36,7 +36,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --include=dev
       # Every native target first builds identical src/ Vite renderer into dist/.
       - run: ${{ matrix.command }}
         env:

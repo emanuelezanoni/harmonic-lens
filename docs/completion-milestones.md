@@ -43,7 +43,7 @@ manual microphone run following the README checklist.
 
 ## M4 — Release candidate
 
-- `npm ci`, `npm run build`, fixture checks, and all M1 comparators pass from
+- `npm ci --include=dev`, `npm run build`, fixture checks, and all M1 comparators pass from
   a fresh clone.
 - Linux desktop package builds; start/stop and microphone permission behavior
   are manually exercised in Electron.

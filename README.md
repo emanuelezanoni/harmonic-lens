@@ -23,7 +23,7 @@ Requirements: Node.js 22.12+; Linux AppImage needs normal Electron Builder host
 tools. Clean clone contains pinned browser artifacts in `public/praat-wasm/`.
 
 ```sh
-npm ci
+npm ci --include=dev
 npm test
 npm run praat:fixtures:check
 npm run praat:wasm:stage:check
