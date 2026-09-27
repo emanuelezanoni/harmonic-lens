@@ -2,6 +2,7 @@ import "./styles.css";
 import { emptyAnalysisResult, type AnalysisResult, type MeasuredPeak } from "./analysis-result";
 import { AnalysisWindowBuffer } from "./dsp/spectrogram-backend";
 import { PraatRuntimeBackend, type RuntimeBackendState } from "./dsp/praat-runtime-backend";
+import { listAudioInputOptions, mapGetUserMediaError, microphoneConstraints, selectedDeviceIsAvailable } from "./audio-input";
 
 type WorkletMessage = {
   frame: Float32Array;
@@ -24,6 +25,7 @@ const harmonicColors = ["#ff5c8a", "#ff9f43", "#f6d743", "#67d978", "#38c8e8", "
 const canvas = requiredElement<HTMLCanvasElement>("#spectrogram");
 const startButton = requiredElement<HTMLButtonElement>("#startButton");
 const stopButton = requiredElement<HTMLButtonElement>("#stopButton");
+const audioInputEl = requiredElement<HTMLSelectElement>("#audioInput");
 const statusEl = requiredElement<HTMLElement>("#status");
 const permissionEl = requiredElement<HTMLElement>("#permission");
 const sampleRateEl = requiredElement<HTMLElement>("#sampleRate");
@@ -54,6 +56,8 @@ let lastMeasurements: HarmonicMeasurement[] = emptyMeasurements();
 let lastPanelRender = 0;
 // Results from a previous start must never paint into a restarted capture.
 let analysisGeneration = 0;
+let selectedDeviceId = "";
+let selectedDeviceMissing = false;
 
 const windowFn = makeHannWindow(fftSize);
 const real = new Float32Array(fftSize);
@@ -63,6 +67,16 @@ paintEmptySpectrogram();
 createHarmonicControls();
 renderHarmonicPanel(lastAnalysis);
 updatePermissionStatus();
+void refreshAudioInputs();
+
+audioInputEl.addEventListener("change", () => {
+  selectedDeviceId = audioInputEl.value;
+  selectedDeviceMissing = false;
+});
+
+navigator.mediaDevices?.addEventListener("devicechange", () => {
+  void refreshAudioInputs();
+});
 
 startButton.addEventListener("click", () => {
   void start();
@@ -73,8 +87,13 @@ stopButton.addEventListener("click", () => {
 });
 
 async function start(): Promise<void> {
+  if (selectedDeviceMissing) {
+    setStatus("Selected microphone is unavailable. Choose another microphone.");
+    return;
+  }
   setStatus("Requesting microphone permission...");
   startButton.disabled = true;
+  audioInputEl.disabled = true;
 
   try {
     if (!window.isSecureContext) {
@@ -84,13 +103,9 @@ async function start(): Promise<void> {
       throw new Error("This browser does not support microphone capture.");
     }
 
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
-      }
-    });
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: microphoneConstraints(selectedDeviceId) });
+    // Device labels become available after permission in privacy-preserving browsers.
+    await refreshAudioInputs();
 
     audioContext = new AudioContext({ latencyHint: "interactive" });
     sampleRate = audioContext.sampleRate;
@@ -118,7 +133,7 @@ async function start(): Promise<void> {
     animationFrame = requestAnimationFrame(updateDiagnostics);
     await updatePermissionStatus();
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : "Microphone start failed.");
+    setStatus(mapGetUserMediaError(error, selectedDeviceId));
     startButton.disabled = false;
     stopButton.disabled = true;
     await stop(false);
@@ -177,11 +192,13 @@ async function stopInternal(updateStatus: boolean): Promise<void> {
   renderHarmonicPanel(lastAnalysis);
   startButton.disabled = false;
   stopButton.disabled = true;
+  audioInputEl.disabled = false;
 
   if (updateStatus) {
     setStatus("Stopped");
   }
   await updatePermissionStatus();
+  await refreshAudioInputs();
 }
 
 function handleAudioFrame(message: WorkletMessage): void {
@@ -567,6 +584,31 @@ async function updatePermissionStatus(): Promise<void> {
     };
   } catch {
     permissionEl.textContent = "prompt";
+  }
+}
+
+async function refreshAudioInputs(): Promise<void> {
+  if (!navigator.mediaDevices?.enumerateDevices) return;
+
+  try {
+    const options = listAudioInputOptions(await navigator.mediaDevices.enumerateDevices());
+    selectedDeviceMissing = !selectedDeviceIsAvailable(selectedDeviceId, options);
+    audioInputEl.replaceChildren(new Option("Default microphone", ""));
+    for (const option of options) audioInputEl.add(new Option(option.label, option.deviceId));
+
+    if (selectedDeviceMissing) {
+      const missing = new Option("Selected microphone unavailable", selectedDeviceId);
+      missing.disabled = true;
+      audioInputEl.add(missing);
+      audioInputEl.value = selectedDeviceId;
+      setStatus(mediaStream
+        ? "Selected microphone disconnected. Stop, then choose another microphone."
+        : "Selected microphone is unavailable. Choose another microphone.");
+    } else {
+      audioInputEl.value = selectedDeviceId;
+    }
+  } catch {
+    // Existing selection remains usable; enumerateDevices can fail independently.
   }
 }
 

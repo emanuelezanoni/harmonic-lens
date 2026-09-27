@@ -14,6 +14,13 @@
             <p id="status">Idle. Audio stays muted locally.</p>
           </div>
           <div class="actions">
+            <label class="audio-input-control" for="audioInput">
+              <span>Microphone</span>
+              <select id="audioInput" aria-describedby="audioInputHint">
+                <option value="">Default microphone</option>
+              </select>
+              <span id="audioInputHint" class="sr-only">Choose microphone for next start</span>
+            </label>
             <button id="startButton" type="button">Start microphone</button>
             <button id="stopButton" type="button" disabled>Stop</button>
           </div>

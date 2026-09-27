@@ -31,6 +31,18 @@ button {
   cursor: pointer;
 }
 
+select {
+  min-height: 42px;
+  border: 1px solid #77818c;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: #f7fafc;
+  background: #26313a;
+  font: inherit;
+}
+
+select:disabled { color: #7d8791; background: #202326; border-color: #343a40; cursor: not-allowed; }
+
 button:disabled {
   color: #7d8791;
   background: #202326;
@@ -79,6 +91,9 @@ p {
   justify-content: end;
   gap: 10px;
 }
+
+.audio-input-control { display: grid; gap: 4px; color: #9aa5af; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; }
+.audio-input-control select { min-width: 190px; text-transform: none; font-size: 1rem; font-weight: 400; }
 
 .meter-row {
   border-block: 1px solid #30363d;
@@ -194,6 +209,8 @@ th { color: #9aa5af; font-size: 0.78rem; text-transform: uppercase; }
   button {
     flex: 1 1 150px;
   }
+
+  .audio-input-control, .audio-input-control select { width: 100%; }
 
   dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
