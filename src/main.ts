@@ -2,12 +2,13 @@ import "./styles.css";
 import { emptyAnalysisResult, type AnalysisResult, type MeasuredPeak } from "./analysis-result";
 import { AnalysisWindowBuffer } from "./dsp/spectrogram-backend";
 import { PraatRuntimeBackend, type RuntimeBackendState } from "./dsp/praat-runtime-backend";
-import { listAudioInputOptions, mapGetUserMediaError, microphoneConstraints, selectedDeviceIsAvailable } from "./audio-input";
+import { formatAnalysisSampleRates, formatCaptureChannels, formatInputDiagnostic, listAudioInputOptions, mapGetUserMediaError, microphoneConstraints, selectedDeviceIsAvailable, type AudioInputOption, type CaptureSettings } from "./audio-input";
 
 type WorkletMessage = {
   frame: Float32Array;
   sampleRate: number;
   timestamp: number;
+  channelCount: number;
 };
 
 const fftSize = 2048;
@@ -29,6 +30,10 @@ const audioInputEl = requiredElement<HTMLSelectElement>("#audioInput");
 const statusEl = requiredElement<HTMLElement>("#status");
 const permissionEl = requiredElement<HTMLElement>("#permission");
 const sampleRateEl = requiredElement<HTMLElement>("#sampleRate");
+const selectedInputEl = requiredElement<HTMLElement>("#selectedInput");
+const actualInputEl = requiredElement<HTMLElement>("#actualInput");
+const captureChannelsEl = requiredElement<HTMLElement>("#captureChannels");
+const analysisSampleRateEl = requiredElement<HTMLElement>("#analysisSampleRate");
 const framesPerSecondEl = requiredElement<HTMLElement>("#framesPerSecond");
 const latencyEl = requiredElement<HTMLElement>("#latency");
 const levelEl = requiredElement<HTMLElement>("#level");
@@ -58,6 +63,9 @@ let lastPanelRender = 0;
 let analysisGeneration = 0;
 let selectedDeviceId = "";
 let selectedDeviceMissing = false;
+let audioInputOptions: AudioInputOption[] = [];
+let captureSettings: CaptureSettings = {};
+let workletChannelCount: number | null = null;
 
 const windowFn = makeHannWindow(fftSize);
 const real = new Float32Array(fftSize);
@@ -104,6 +112,7 @@ async function start(): Promise<void> {
     }
 
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: microphoneConstraints(selectedDeviceId) });
+    captureSettings = mediaStream.getAudioTracks()[0]?.getSettings?.() ?? {};
     // Device labels become available after permission in privacy-preserving browsers.
     await refreshAudioInputs();
 
@@ -114,7 +123,12 @@ async function start(): Promise<void> {
     await audioContext.resume();
 
     sourceNode = audioContext.createMediaStreamSource(mediaStream);
-    workletNode = new AudioWorkletNode(audioContext, "microphone-processor");
+    workletNode = new AudioWorkletNode(audioContext, "microphone-processor", {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+      channelCountMode: "max"
+    });
     workletNode.port.onmessage = (event: MessageEvent<WorkletMessage>) => handleAudioFrame(event.data);
     workletNode.onprocessorerror = () => {
       setStatus("Audio processor stopped unexpectedly.");
@@ -130,6 +144,7 @@ async function start(): Promise<void> {
     setStatus("Listening");
     stopButton.disabled = false;
     sampleRateEl.textContent = `${sampleRate.toLocaleString()} Hz`;
+    renderCaptureDiagnostics();
     animationFrame = requestAnimationFrame(updateDiagnostics);
     await updatePermissionStatus();
   } catch (error) {
@@ -184,7 +199,13 @@ async function stopInternal(updateStatus: boolean): Promise<void> {
   lastMeasurements = emptyMeasurements();
   lastPanelRender = 0;
   sampleRate = 0;
+  captureSettings = {};
+  workletChannelCount = null;
   sampleRateEl.textContent = "--";
+  selectedInputEl.textContent = "--";
+  actualInputEl.textContent = "unknown";
+  captureChannelsEl.textContent = "unknown → mono average";
+  analysisSampleRateEl.textContent = formatAnalysisSampleRates(null, null);
   framesPerSecondEl.textContent = "--";
   latencyEl.textContent = "--";
   levelEl.textContent = "--";
@@ -203,7 +224,12 @@ async function stopInternal(updateStatus: boolean): Promise<void> {
 
 function handleAudioFrame(message: WorkletMessage): void {
   framesThisSecond += 1;
+  const sampleRateChanged = sampleRate !== message.sampleRate;
   sampleRate = message.sampleRate;
+  if (sampleRateChanged || workletChannelCount !== message.channelCount) {
+    workletChannelCount = message.channelCount;
+    renderCaptureDiagnostics();
+  }
 
   const outputLatency = audioContext?.outputLatency ?? 0;
   peakLatencyMs = Math.max(peakLatencyMs, Math.max(0, audioContext ? (audioContext.currentTime - message.timestamp + outputLatency) * 1000 : 0));
@@ -592,6 +618,7 @@ async function refreshAudioInputs(): Promise<void> {
 
   try {
     const options = listAudioInputOptions(await navigator.mediaDevices.enumerateDevices());
+    audioInputOptions = options;
     selectedDeviceMissing = !selectedDeviceIsAvailable(selectedDeviceId, options);
     audioInputEl.replaceChildren(new Option("Default microphone", ""));
     for (const option of options) audioInputEl.add(new Option(option.label, option.deviceId));
@@ -607,9 +634,17 @@ async function refreshAudioInputs(): Promise<void> {
     } else {
       audioInputEl.value = selectedDeviceId;
     }
+    if (mediaStream) renderCaptureDiagnostics();
   } catch {
     // Existing selection remains usable; enumerateDevices can fail independently.
   }
+}
+
+function renderCaptureDiagnostics(): void {
+  selectedInputEl.textContent = formatInputDiagnostic(selectedDeviceId, audioInputOptions, "Default microphone");
+  actualInputEl.textContent = formatInputDiagnostic(captureSettings.deviceId, audioInputOptions, "unknown");
+  captureChannelsEl.textContent = formatCaptureChannels(captureSettings, workletChannelCount);
+  analysisSampleRateEl.textContent = formatAnalysisSampleRates(audioContext?.sampleRate ?? null, sampleRate || null);
 }
 
 function setStatus(message: string): void {

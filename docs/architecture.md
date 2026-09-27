@@ -13,8 +13,9 @@ is deliberately deferred until pitch and rendering are reliable.
 
 ## Milestone 1 foundation
 
-The browser scaffold keeps the `AudioWorkletProcessor` minimal: it copies input
-channel frames and posts them to the main thread. The main thread owns the
+The browser scaffold keeps the `AudioWorkletProcessor` minimal: it averages all
+delivered input channels into one mono frame, then posts that frame to the main
+thread. It allocates one transferable frame per render quantum. The main thread owns the
 temporary ring buffer, Hann window, pragmatic radix-2 FFT, Canvas waterfall, and
 diagnostic counters. A zero-gain sink keeps the Web Audio graph rendered while
 preventing microphone monitoring/feedback.

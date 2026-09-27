@@ -5,6 +5,8 @@ export type AudioInputOption = {
   label: string;
 };
 
+export type CaptureSettings = Pick<MediaTrackSettings, "channelCount" | "deviceId">;
+
 export function listAudioInputOptions(devices: readonly AudioInputDevice[]): AudioInputOption[] {
   return devices
     .filter((device) => device.kind === "audioinput")
@@ -25,6 +27,25 @@ export function microphoneConstraints(selectedDeviceId: string): MediaTrackConst
     autoGainControl: false,
     ...(selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : {})
   };
+}
+
+export function formatInputDiagnostic(deviceId: string | undefined, options: readonly AudioInputOption[], fallback: string): string {
+  if (!deviceId) return fallback;
+  return options.find((option) => option.deviceId === deviceId)?.label ?? `Device ID: ${deviceId}`;
+}
+
+export function formatCaptureChannels(settings: CaptureSettings, workletChannelCount: number | null): string {
+  const channelCount = workletChannelCount && workletChannelCount > 0
+    ? `${workletChannelCount} channels`
+    : settings.channelCount && settings.channelCount > 0
+      ? `${settings.channelCount} reported channels`
+      : "channels unknown";
+  return `${channelCount} → mono average`;
+}
+
+export function formatAnalysisSampleRates(audioContextSampleRate: number | null, analysisSampleRate: number | null): string {
+  const format = (sampleRate: number | null) => sampleRate && sampleRate > 0 ? `${sampleRate.toLocaleString()} Hz` : "unknown";
+  return `AudioContext ${format(audioContextSampleRate)} · analysis ${format(analysisSampleRate)}`;
 }
 
 export function mapGetUserMediaError(error: unknown, selectedDeviceId: string): string {

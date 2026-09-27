@@ -6,7 +6,11 @@ spectrogram, Praat WASM F0/HNR/harmonic peak analysis, and eight harmonic guides
 ## Release-candidate scope
 
 - Browser/Electron renderer captures microphone audio through `getUserMedia` and
-  an `AudioWorklet`; input ends at zero gain, never speaker playback.
+  an `AudioWorklet`; every delivered capture channel is averaged into one
+  deterministic mono analysis signal. Input ends at zero gain, never speaker
+  playback. Runtime UI distinguishes requested input, browser-reported actual
+  input where exposed, delivered/reported channel count, and AudioContext/
+  analysis sample rates; unavailable browser values display as unknown.
 - Canvas waterfall remains browser-FFT rendered. A bounded Worker loads pinned
   Praat WASM for F0, CC harmonicity (HNR), and measured harmonic peaks; failure
   or overload falls back to browser FFT.
