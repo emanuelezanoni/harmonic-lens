@@ -11,7 +11,7 @@
         <header class="topbar">
           <div>
             <h1 id="app-title">Harmonic Lens</h1>
-            <p id="status">Idle. Audio stays muted locally.</p>
+            <p id="status" role="status" aria-live="polite" data-state="idle">Idle. Audio stays muted locally.</p>
           </div>
           <div class="actions">
             <label class="audio-input-control" for="audioInput">
@@ -67,7 +67,13 @@
           </dl>
         </section>
 
-        <canvas id="spectrogram" width="960" height="420" aria-label="Rolling spectrogram"></canvas>
+        <section class="visualizer" aria-labelledby="visualizer-title">
+          <div class="visualizer-heading">
+            <h2 id="visualizer-title">Live spectrum</h2>
+            <span>Low frequency</span><span>High frequency</span>
+          </div>
+          <canvas id="spectrogram" width="960" height="420" aria-label="Rolling spectrogram"></canvas>
+        </section>
 
         <section class="harmonics" aria-labelledby="harmonics-title">
           <div class="harmonics-heading">
