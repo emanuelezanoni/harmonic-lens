@@ -1,14 +1,15 @@
-import { app, BrowserWindow, session } from "electron";
+import { app, BrowserWindow, session, systemPreferences } from "electron";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { allowsMicrophonePermission } from "./security.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { allowsMicrophoneCheck, allowsMicrophonePermission } from "./security.mjs";
 
 const appDirectory = dirname(fileURLToPath(import.meta.url));
 const runtimeDirectory = await mkdtemp(join(tmpdir(), "harmonic-lens-"));
 const devServerArgument = process.argv.find((argument) => argument.startsWith("--dev-server-url="));
 const devServerUrl = devServerArgument?.slice("--dev-server-url=".length);
+const trustedFileUrl = pathToFileURL(join(appDirectory, "..", "dist", "index.html")).href;
 let mainWindow;
 let cleanupStarted = false;
 
@@ -38,15 +39,41 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, _requestingOrigin, details) => {
+    return allowsMicrophoneCheck({
+      permission,
+      pageUrl: webContents?.getURL() ?? "",
+      requestingUrl: details?.requestingUrl,
+      isMainFrame: details?.isMainFrame,
+      requestWebContentsId: webContents?.id,
+      mainWebContentsId: mainWindow?.webContents.id,
+      trustedFileUrl,
+      devServerUrl,
+      mediaType: details?.mediaType
+    });
+  });
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
-    callback(allowsMicrophonePermission({
+    const allowedByPolicy = allowsMicrophonePermission({
       permission,
       pageUrl: webContents.getURL(),
+      requestingUrl: details.requestingUrl,
+      isMainFrame: details.isMainFrame,
       requestWebContentsId: webContents.id,
       mainWebContentsId: mainWindow?.webContents.id,
+      trustedFileUrl,
       devServerUrl,
       mediaTypes: details.mediaTypes
-    }));
+    });
+    if (!allowedByPolicy || process.platform !== "darwin") {
+      callback(allowedByPolicy);
+      return;
+    }
+
+    // Chromium permission and macOS TCC are independent gates. Request TCC only
+    // after the trusted renderer asks for microphone access from a user action.
+    void systemPreferences.askForMediaAccess("microphone")
+      .then(callback)
+      .catch(() => callback(false));
   });
   createWindow();
   app.on("activate", () => {

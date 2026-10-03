@@ -2,7 +2,7 @@ import "./styles.css";
 import { emptyAnalysisResult, type AnalysisResult, type MeasuredPeak } from "./analysis-result";
 import { AnalysisWindowBuffer } from "./dsp/spectrogram-backend";
 import { PraatRuntimeBackend, type RuntimeBackendState } from "./dsp/praat-runtime-backend";
-import { formatAnalysisSampleRates, formatCaptureChannels, formatInputDiagnostic, listAudioInputOptions, mapGetUserMediaError, microphoneConstraints, selectedDeviceIsAvailable, type AudioInputOption, type CaptureSettings } from "./audio-input";
+import { formatAnalysisSampleRates, formatCaptureChannels, formatInputDiagnostic, listAudioInputOptions, mapGetUserMediaError, requestMicrophone, selectedDeviceIsAvailable, type AudioInputOption, type CaptureSettings } from "./audio-input";
 
 type WorkletMessage = {
   frame: Float32Array;
@@ -66,6 +66,9 @@ let selectedDeviceMissing = false;
 let audioInputOptions: AudioInputOption[] = [];
 let captureSettings: CaptureSettings = {};
 let workletChannelCount: number | null = null;
+let lifecycleGeneration = 0;
+let refreshGeneration = 0;
+let permissionGeneration = 0;
 
 const windowFn = makeHannWindow(fftSize);
 const real = new Float32Array(fftSize);
@@ -102,6 +105,8 @@ async function start(): Promise<void> {
   setStatus("Requesting microphone permission...");
   startButton.disabled = true;
   audioInputEl.disabled = true;
+  const generation = ++lifecycleGeneration;
+  let fellBackToDefault = false;
 
   try {
     if (!window.isSecureContext) {
@@ -111,16 +116,46 @@ async function start(): Promise<void> {
       throw new Error("This browser does not support microphone capture.");
     }
 
-    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: microphoneConstraints(selectedDeviceId) });
+    // Construct/resume during click activation. Permission prompts can outlive transient activation.
+    audioContext = new AudioContext({ latencyHint: "interactive" });
+    const resumePromise = audioContext.resume();
+    const capture = await requestMicrophone(
+      (constraints) => navigator.mediaDevices.getUserMedia(constraints),
+      selectedDeviceId
+    );
+    if (generation !== lifecycleGeneration) {
+      capture.stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    mediaStream = capture.stream;
+    fellBackToDefault = capture.fellBackToDefault;
+    if (fellBackToDefault) {
+      selectedDeviceId = "";
+      selectedDeviceMissing = false;
+    }
     captureSettings = mediaStream.getAudioTracks()[0]?.getSettings?.() ?? {};
+    const captureTrack = mediaStream.getAudioTracks()[0];
+    if (!captureTrack) throw new DOMException("No audio track was returned.", "NotFoundError");
+    captureTrack.addEventListener("ended", () => {
+      if (generation !== lifecycleGeneration) return;
+      setStatus("Microphone disconnected or permission was revoked. Choose an input, then start again.");
+      void stop(false);
+    }, { once: true });
     // Device labels become available after permission in privacy-preserving browsers.
     await refreshAudioInputs();
+    if (generation !== lifecycleGeneration || !audioContext || !mediaStream) return;
 
-    audioContext = new AudioContext({ latencyHint: "interactive" });
     sampleRate = audioContext.sampleRate;
     createPraatBackend();
     await audioContext.audioWorklet.addModule(new URL("./audio-processor.js", window.location.href).toString());
-    await audioContext.resume();
+    await resumePromise;
+    if (generation !== lifecycleGeneration || !audioContext || !mediaStream) return;
+    if (audioContext.state !== "running") throw new DOMException("AudioContext did not enter running state.", "InvalidStateError");
+    audioContext.addEventListener("statechange", () => {
+      if (generation !== lifecycleGeneration || audioContext?.state === "running") return;
+      setStatus("Audio system was interrupted. Start again to resume microphone analysis.");
+      void stop(false);
+    });
 
     sourceNode = audioContext.createMediaStreamSource(mediaStream);
     workletNode = new AudioWorkletNode(audioContext, "microphone-processor", {
@@ -141,7 +176,7 @@ async function start(): Promise<void> {
     workletNode.connect(silentSink);
     silentSink.connect(audioContext.destination);
 
-    setStatus("Listening");
+    setStatus(fellBackToDefault ? "Listening · selected microphone unavailable; using default microphone" : "Listening");
     stopButton.disabled = false;
     sampleRateEl.textContent = `${sampleRate.toLocaleString()} Hz`;
     renderCaptureDiagnostics();
@@ -170,6 +205,7 @@ async function stop(updateStatus = true): Promise<void> {
 }
 
 async function stopInternal(updateStatus: boolean): Promise<void> {
+  lifecycleGeneration += 1;
   stopButton.disabled = true;
   cancelAnimationFrame(animationFrame);
   workletNode?.disconnect();
@@ -597,6 +633,7 @@ function paintEmptySpectrogram(): void {
 }
 
 async function updatePermissionStatus(): Promise<void> {
+  const generation = ++permissionGeneration;
   if (!navigator.permissions?.query) {
     permissionEl.textContent = "prompt";
     return;
@@ -604,8 +641,10 @@ async function updatePermissionStatus(): Promise<void> {
 
   try {
     const permission = await navigator.permissions.query({ name: "microphone" as PermissionName });
+    if (generation !== permissionGeneration) return;
     permissionEl.textContent = permission.state;
     permission.onchange = () => {
+      if (generation !== permissionGeneration) return;
       permissionEl.textContent = permission.state;
     };
   } catch {
@@ -615,9 +654,11 @@ async function updatePermissionStatus(): Promise<void> {
 
 async function refreshAudioInputs(): Promise<void> {
   if (!navigator.mediaDevices?.enumerateDevices) return;
+  const generation = ++refreshGeneration;
 
   try {
     const options = listAudioInputOptions(await navigator.mediaDevices.enumerateDevices());
+    if (generation !== refreshGeneration) return;
     audioInputOptions = options;
     selectedDeviceMissing = !selectedDeviceIsAvailable(selectedDeviceId, options);
     audioInputEl.replaceChildren(new Option("Default microphone", ""));
@@ -649,6 +690,11 @@ function renderCaptureDiagnostics(): void {
 
 function setStatus(message: string): void {
   statusEl.textContent = message;
+  statusEl.dataset.state = message.startsWith("Listening")
+    ? message.includes("fallback") || message.includes("catching up") ? "warning" : "active"
+    : message === "Stopped" ? "idle"
+      : message.includes("failed") || message.includes("denied") || message.includes("unavailable") || message.includes("disconnected") ? "error"
+        : "pending";
 }
 
 function requiredElement<T extends Element>(selector: string): T {
