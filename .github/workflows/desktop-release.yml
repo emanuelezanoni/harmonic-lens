@@ -18,10 +18,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - label: macOS ZIP
-            os: macos-15-intel
+          - label: macOS arm64 ZIP
+            os: macos-15
             command: npm run package:mac
-            artifact: harmonic-lens-*-mac-x64.zip
+            artifact: harmonic-lens-*-mac-arm64.zip
           - label: Windows portable
             os: windows-latest
             command: npm run package:win

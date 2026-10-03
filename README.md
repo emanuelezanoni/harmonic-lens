@@ -52,6 +52,32 @@ npm run dev:desktop
 Use localhost or HTTPS. `npm run package:linux` produces
 `release/Harmonic Lens-<version>.AppImage`; artifacts are unsigned.
 
+## macOS Apple Silicon
+
+`npm run package:mac` builds arm64 ZIP on macOS. `package:mac:x64` remains
+available for Intel; `package:mac:universal` is optional when one combined
+artifact is required. CI builds arm64 natively on GitHub's `macos-15` Apple
+Silicon runner. This project has no native Node modules, so its JS/WASM payload
+does not need per-architecture compilation.
+
+Packaged `Info.plist` includes `NSMicrophoneUsageDescription`. Electron's main
+process allows audio-only media requests from the exact top-level app page and,
+on macOS, asks TCC for microphone access. A denial is not re-prompted: enable
+Harmonic Lens in **System Settings → Privacy & Security → Microphone**, quit,
+then reopen it. For local reset testing:
+
+```sh
+tccutil reset Microphone org.harmoniclens.app
+```
+
+No custom macOS entitlement file is included. Stock, non-Mac-App-Store Electron
+does not require one for microphone capture. `build.mac.identity` is explicitly
+`null`, keeping test/CI artifacts truly unsigned instead of implicitly ad-hoc
+signed; this avoids a current electron-builder 26.0.13+ TCC/capture regression.
+Artifacts are not notarized. Do not distribute them as trusted releases until
+Developer ID signing/notarization replaces that setting. Physical-Mac checklist
+and inspection commands: [macOS arm64 verification](docs/macos-arm64.md).
+
 ## Verification boundary
 
 Native oracle, fixture hashes, WASM parity, runtime integration, packaging, and

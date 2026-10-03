@@ -12,6 +12,7 @@ repository evidence from unrun manual/runtime checks.
 | WASM pitch / HNR | **VERIFIED parity** | Fresh wrapper smoke build and four-fixture raw-AC/CC comparison passed. Worst pitch delta `6.026492513910853e-7`; HNR `0.0051510992886818485`. | No live latency/quality claim. Upstream/wasm-ld emits nonfatal compile/link warnings; investigate before changing closure/toolchain. |
 | Live integration | **IMPLEMENTED, unverified runtime** | Worker lifecycle/overload/unit behavior covered by `npm test`; fallback remains. | No manual microphone/browser/Electron test performed. Canvas image still uses browser FFT. |
 | Electron security/lifecycle | **UNIT-VERIFIED policy** | Audio-only trusted-main-page permission policy; temporary profile cleanup path. | No packaged-app permission/quit test on desktop session. |
+| macOS Apple Silicon | **CROSS-PACKAGED/UNIT-VERIFIED; native runtime pending** | Explicit arm64 ZIP command; Apple Silicon CI runner; microphone purpose string; Electron permission + TCC flow; architecture/config regression tests. Linux cross-package produced arm64 Mach-O with expected plist and ASAR entries. | Linux audit cannot execute macOS app, exercise CoreAudio/TCC, or validate signing/notarization. Run [`macos-arm64.md`](macos-arm64.md) on physical Apple Silicon. |
 | Linux AppImage | **VERIFIED in clean-clone audit** | Node 24.16.0: `npm run package:linux` creates unsigned x64 AppImage. | Install/launch/manual mic test not performed; desktop/portal behavior host-specific. |
 
 ## Commands
@@ -24,6 +25,8 @@ npm run praat:wasm:stage:check
 npm run build
 npm run package:linux
 ```
+
+macOS architecture/TCC checklist: [`macos-arm64.md`](macos-arm64.md).
 
 ## Product boundary
 
