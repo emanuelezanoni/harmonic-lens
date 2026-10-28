@@ -9,8 +9,9 @@ export interface PitchProvider {
   harmonicity(samples: Float32Array, sampleRate: number): number | null;
 }
 export interface FormantProvider {
-  /** Uses the most recent samples (at least 2 x its window length). */
-  estimate(samples: Float32Array): Formant[];
+  /** Uses the most recent samples (at least 2 x its window length). `voiced`: a periodic source is present. */
+  estimate(samples: Float32Array, voiced?: boolean): Formant[];
+  reset?(): void;
 }
 
 export type EngineConfig = {
@@ -34,6 +35,8 @@ export type EngineConfig = {
    */
   hnrRateHz?: number;
   hnrEveryHops?: number;
+  /** Report formants only while a pitch track exists (default true): unvoiced noise has poles but no vowel. */
+  formantsNeedVoicing?: boolean;
 };
 
 export type FrameResult = {
@@ -103,7 +106,7 @@ export class AnalysisEngine {
   }
 
   reset(): void {
-    this.total = 0; this.lastEmit = 0; this.hopCount = 0; this.hnrHold = null; this.tracker.reset(); this.ring.fill(0);
+    this.total = 0; this.lastEmit = 0; this.hopCount = 0; this.hnrHold = null; this.tracker.reset(); this.formants.reset?.(); this.ring.fill(0);
   }
 
   push(block: Float32Array): FrameResult | null {
@@ -145,7 +148,9 @@ export class AnalysisEngine {
 
     const f0Hz = audible ? this.tracker.update(this.pitch.pitch(pitchSamples, sr)) : this.tracker.update(null);
     const hnrDb = f0Hz === null ? this.dropHnr() : this.updateHnr(pitchSamples);
-    const formants = audible ? this.formants.estimate(this.latest(this.formantWindow, this.formantScratch)) : [];
+    const voiced = f0Hz !== null;
+    let formants = audible ? this.formants.estimate(this.latest(this.formantWindow, this.formantScratch), voiced) : [];
+    if (!voiced && (this.config.formantsNeedVoicing ?? true)) formants = [];
 
     const spectrum = new Float32Array(this.spectrumRows);
     this.spectrum.compute(this.latest(this.spectrum.windowSamples, this.spectrumScratch), spectrum);

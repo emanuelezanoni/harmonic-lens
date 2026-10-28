@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import { AnalysisEngine, type PitchProvider } from "./engine";
-import { FormantEstimator } from "./formants";
+import { TrackedFormants } from "./formants/tracker";
 import { loadPraatPitchModule, PraatPitchHarmonicity } from "./praat-wasm";
 import { pitchRangeFor, type AnalysisSettings, type AudioChunk, type WorkerRequest, type WorkerResponse } from "./analysis-protocol";
 import type { EmscriptenPitchModule } from "./praat-wasm";
@@ -52,7 +52,7 @@ function buildEngine(): void {
   engine = new AnalysisEngine(
     { sampleRate, spectrumMaxHz: settings.spectrumMaxHz, spectrumWindowS: settings.spectrumWindowS },
     provider,
-    new FormantEstimator(sampleRate, { maxFormantHz: settings.maxFormantHz })
+    new TrackedFormants(sampleRate, { maxFormantHz: settings.maxFormantHz })
   );
   origin = null;
 }
