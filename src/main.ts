@@ -79,7 +79,12 @@ renderPanel(null);
 void updatePermissionStatus();
 void refreshAudioInputs();
 
-audioInputEl.addEventListener("change", () => { selectedDeviceId = audioInputEl.value; selectedDeviceMissing = false; });
+audioInputEl.addEventListener("change", () => {
+  selectedDeviceId = audioInputEl.value;
+  selectedDeviceMissing = false;
+  // Switching while listening restarts capture on the new device instead of waiting for a manual stop/start.
+  if (audioContext) void restart();
+});
 navigator.mediaDevices?.addEventListener("devicechange", () => { void refreshAudioInputs(); });
 startButton.addEventListener("click", () => { void start(); });
 stopButton.addEventListener("click", () => { void stop(); });
@@ -107,11 +112,15 @@ function setPaused(next: boolean): void {
   else setStatus(praatAvailable === false ? "Listening · Praat WASM unavailable (pitch/HNR off)" : "Listening · Praat WASM");
 }
 
+async function restart(): Promise<void> {
+  await stop(false);
+  await start();
+}
+
 async function start(): Promise<void> {
   if (selectedDeviceMissing) { setStatus("Selected microphone is unavailable. Choose another microphone."); return; }
   setStatus("Requesting microphone permission...");
   startButton.disabled = true;
-  audioInputEl.disabled = true;
   const generation = ++lifecycleGeneration;
   let fellBackToDefault = false;
 
