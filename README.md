@@ -1,25 +1,45 @@
 # Harmonic Lens
 
-GPL-2.0-or-later live vocal visualizer: microphone capture, rolling Canvas
-spectrogram, Praat WASM F0/HNR/harmonic peak analysis, and eight harmonic guides.
+GPL-2.0-or-later **real-time** vocal analyzer: the Praat-style view of your voice
+(spectrogram, F0, formants F1-F4, HNR, harmonics) while you sing or speak, instead
+of record-then-inspect.
 
-## Release-candidate scope
+## What it does
 
-- Browser/Electron renderer captures microphone audio through `getUserMedia` and
-  an `AudioWorklet`; every delivered capture channel is averaged into one
-  deterministic mono analysis signal. Input ends at zero gain, never speaker
-  playback. Runtime UI distinguishes requested input, browser-reported actual
-  input where exposed, delivered/reported channel count, and AudioContext/
-  analysis sample rates; unavailable browser values display as unknown.
-- Canvas waterfall remains browser-FFT rendered. A bounded Worker loads pinned
-  Praat WASM for F0, CC harmonicity (HNR), and measured harmonic peaks; failure
-  or overload falls back to browser FFT.
-- Electron has `contextIsolation`, sandbox, no Node integration, temporary
-  profile/cache/session storage, and grants only audio media to its trusted main
-  page. Runtime state is removed on normal quit.
-- No recordings, settings, calibration, formants, pause/reset, or export exist.
-- Browser and Electron microphone sessions were **not manually tested for this
-  release candidate**. Permission/device/portal behavior remains host-dependent.
+- Microphone via `getUserMedia` and an `AudioWorklet` (all channels averaged to mono,
+  input never played back). The worklet sends audio straight to an analysis Worker;
+  the main thread only paints.
+- One analysis pipeline (`src/dsp/engine.ts`), ~10 ms hop, ~2 ms CPU per frame:
+  - F0 and HNR from the pinned Praat v7.0.02 WASM (raw autocorrelation pitch, cross-correlation
+    HNR). HNR runs on an 8 kHz decimated copy every 4th hop (the Praat call costs 35-100 ms at
+    48 kHz); deliberate divergence, about 0.5 dB on voiced signals.
+  - Formants: TypeScript port of Praat's Burg algorithm (`src/dsp/formants/`), validated against
+    Praat 6.1.38 via parselmouth (median F1-F3 error under 0.15% on clean synthetic vowels).
+  - Praat-style Gaussian spectrogram (wideband 5 ms for formants, narrowband 30 ms for harmonics),
+    pre-emphasis from 50 Hz, selectable 0-3/5/8 kHz range.
+  - Eight n x F0 harmonic guides with measured peaks; a pitch tracker bridges dropouts and rejects
+    isolated octave jumps.
+- UI: labelled Hz and time axes, F0 and F1-F4 tracks over the spectrogram, voice presets (max
+  formant 5000/5500/7000 Hz), pause/resume.
+- If the Praat WASM fails to load the UI says so (pitch/HNR off); there is no hidden fallback
+  estimator. Spectrogram and formants keep running.
+- Electron has `contextIsolation`, sandbox, no Node integration, temporary profile, audio-only
+  permission for the trusted main page. No recordings or settings are persisted.
+
+Not implemented: recording/export, calibration, saved settings, formant continuity tracking
+(spurious poles can appear, as in Praat itself), and a manually tested desktop release.
+
+## End-to-end check
+
+`tools/e2e/` drives the built app in headless Chromium with a fake microphone playing synthetic
+vowels (a, i, u) and fails on regressions (F0 coverage, formants present, latency, frame rate):
+
+```sh
+python3 tools/e2e/synth_vowels.py /tmp/vowels
+python3 tools/e2e/run_app.py /tmp/vowels.wav /tmp/run 9   # needs playwright + chromium; builds dist/ first
+```
+
+Real-microphone behaviour remains host-dependent and untested here.
 
 ## Deterministic verification
 

@@ -4,7 +4,7 @@ import { AnalysisEngine, PitchTracker, type FrameResult } from "../src/dsp/engin
 import { loadPraatPitchModule, PraatPitchHarmonicity } from "../src/dsp/praat-wasm";
 import { SpectrumAnalyzer } from "../src/dsp/spectrum";
 
-const sr = 48000;
+let sr = 48000;
 const wasmUrl = new URL("../public/praat-wasm/praat-pitch-harmonicity.js", import.meta.url).href;
 const noFormants = { estimate: () => [] };
 
@@ -133,4 +133,18 @@ test("engine reports Praat-like formants and F0 for synthetic vowels", async () 
     }
     praat.dispose();
   }
+});
+
+test("engine works at 44.1 kHz and 16 kHz capture rates", async () => {
+  const original = sr;
+  try {
+    for (const rate of [44100, 16000]) {
+      sr = rate;
+      const frames = await run(tone(0.6, () => 200));
+      const last = frames.at(-1);
+      assert.ok(last && last.f0Hz !== null && Math.abs(last.f0Hz - 200) < 1, `${rate} Hz: f0 ${last?.f0Hz}`);
+      assert.ok(last.hnrDb !== null, `${rate} Hz: hnr`);
+      assert.equal(last.spectrum.length, 256);
+    }
+  } finally { sr = original; }
 });

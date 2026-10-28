@@ -60,6 +60,8 @@ latency (target: under 100 ms for visual feedback).
 
 ## Milestone 4 — formants and usable sessions
 
+**Status (core-realtime branch):** formants F1-F4 (TypeScript Burg port validated against Praat), Hz/time axes, voice presets and pause are implemented. Calibration, recording/export, settings persistence and formant continuity tracking remain.
+
 - Evaluate the LPC/Burg path from `fon/Sound_to_Formant.cpp`.
 - Add F1/F2 only if pitch/spectrogram are stable.
 - Add calibration, pause/reset, recording/export, and a legible control panel.
