@@ -2,7 +2,9 @@ import "./styles.css";
 import { AnalysisClient } from "./dsp/analysis-client";
 import { type AnalysisFrame, type AnalysisSettings } from "./dsp/analysis-protocol";
 import { formatAnalysisSampleRates, formatCaptureChannels, formatInputDiagnostic, listAudioInputOptions, mapGetUserMediaError, requestMicrophone, selectedDeviceIsAvailable, type AudioInputOption, type CaptureSettings } from "./audio-input";
+import { formatLevel, loadCalibration, offsetFromReading, saveCalibration, type Calibration } from "./calibration";
 import { loadSettings, saveSettings } from "./saved-settings";
+import { SessionLog } from "./session-export";
 import { SpectrogramView, formantColors, shownFormants } from "./ui/spectrogram-view";
 
 const partialCount = 8;
@@ -29,6 +31,12 @@ const analysisSampleRateEl = requiredElement<HTMLElement>("#analysisSampleRate")
 const framesPerSecondEl = requiredElement<HTMLElement>("#framesPerSecond");
 const latencyEl = requiredElement<HTMLElement>("#latency");
 const levelEl = requiredElement<HTMLElement>("#level");
+const splReadingEl = requiredElement<HTMLInputElement>("#splReading");
+const calibrateButton = requiredElement<HTMLButtonElement>("#calibrateButton");
+const calibrationResetButton = requiredElement<HTMLButtonElement>("#calibrationReset");
+const calibrationStateEl = requiredElement<HTMLElement>("#calibrationState");
+const exportButton = requiredElement<HTMLButtonElement>("#exportButton");
+const exportStateEl = requiredElement<HTMLElement>("#exportState");
 const pitchStateEl = requiredElement<HTMLElement>("#pitchState");
 const formantStateEl = requiredElement<HTMLElement>("#formantState");
 const harmonicTogglesEl = requiredElement<HTMLElement>("#harmonicToggles");
@@ -49,6 +57,9 @@ let lastDiagnostics = performance.now();
 let animationFrame = 0;
 let lastPanelRender = 0;
 let paused = false;
+let calibration: Calibration | null = loadCalibration();
+const recentLevels: number[] = []; // last ~1 s of RMS levels, used by Calibrate
+const sessionLog = new SessionLog();
 let showFormants = true;
 let latestFrame: AnalysisFrame | null = null;
 let lastVoicedFrame: AnalysisFrame | null = null;
@@ -76,6 +87,7 @@ let permissionGeneration = 0;
 view.setRange(settings.spectrumMaxHz);
 createHarmonicControls();
 renderPanel(null);
+renderCalibration();
 void updatePermissionStatus();
 void refreshAudioInputs();
 
@@ -104,6 +116,34 @@ function applySettings(): void {
   client?.updateSettings(settings);
   persist();
 }
+
+function renderCalibration(): void {
+  const active = calibration !== null && calibration.deviceId === (captureSettings.deviceId ?? "");
+  calibrationStateEl.textContent = active
+    ? `Calibrated: offset ${calibration!.offsetDb >= 0 ? "+" : ""}${calibration!.offsetDb.toFixed(1)} dB (this microphone only)`
+    : calibration ? "Calibration belongs to another microphone: showing dBFS" : "Uncalibrated: showing dBFS (0 = digital full scale)";
+  calibrationResetButton.disabled = calibration === null;
+  calibrateButton.disabled = audioContext === null;
+  exportButton.disabled = sessionLog.length === 0;
+}
+
+calibrateButton.addEventListener("click", () => {
+  const offset = offsetFromReading(Number(splReadingEl.value), recentLevels);
+  if (offset === null) { calibrationStateEl.textContent = "Cannot calibrate: play a steady sound and enter the meter reading (20-140 dB SPL)"; return; }
+  calibration = { offsetDb: offset, deviceId: captureSettings.deviceId ?? "" };
+  saveCalibration(calibration);
+  renderCalibration();
+});
+calibrationResetButton.addEventListener("click", () => { calibration = null; saveCalibration(null); renderCalibration(); });
+exportButton.addEventListener("click", () => {
+  const active = calibration !== null && calibration.deviceId === (captureSettings.deviceId ?? "");
+  const blob = new Blob([sessionLog.toCsv(active ? calibration!.offsetDb : null)], { type: "text/csv" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `harmonic-lens-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+});
 
 function setPaused(next: boolean): void {
   paused = next;
@@ -148,6 +188,7 @@ async function start(): Promise<void> {
     if (generation !== lifecycleGeneration || !audioContext || !mediaStream) return;
 
     sampleRate = audioContext.sampleRate;
+    sessionLog.clear(); recentLevels.length = 0;
     await audioContext.audioWorklet.addModule(new URL("./audio-processor.js", window.location.href).toString());
     await resumePromise;
     if (generation !== lifecycleGeneration || !audioContext || !mediaStream) return;
@@ -194,6 +235,7 @@ async function start(): Promise<void> {
     setStatus(fellBackToDefault ? "Listening · selected microphone unavailable; using default microphone" : "Listening · loading Praat WASM");
     stopButton.disabled = false;
     pauseButton.disabled = false;
+    renderCalibration();
     sampleRateEl.textContent = `${sampleRate.toLocaleString()} Hz`;
     renderCaptureDiagnostics();
     animationFrame = requestAnimationFrame(tick);
@@ -234,6 +276,7 @@ async function stopInternal(updateStatus: boolean): Promise<void> {
   framesPerSecondEl.textContent = "--"; latencyEl.textContent = "--"; levelEl.textContent = "--";
   view.clear();
   renderPanel(null);
+  renderCalibration();
   startButton.disabled = false;
   audioInputEl.disabled = false;
   if (updateStatus) setStatus("Stopped");
@@ -246,7 +289,9 @@ function onFrame(frame: AnalysisFrame, generation: number): void {
   framesThisSecond += 1;
   const latencyMs = (audioContext.currentTime - frame.audioTimeS) * 1000;
   if (latencyMs > peakLatencyMs) peakLatencyMs = latencyMs;
+  recentLevels.push(frame.levelDb); if (recentLevels.length > 100) recentLevels.shift();
   if (paused) return;
+  sessionLog.add(frame);
   latestFrame = frame;
   if (frame.f0Hz !== null || frame.formants.length > 0) { lastVoicedFrame = frame; lastVoicedAt = performance.now(); }
   view.enqueue(frame);
@@ -261,7 +306,9 @@ function tick(now = performance.now()): void {
   if (now - lastDiagnostics >= 1000) {
     framesPerSecondEl.textContent = `${framesThisSecond}`;
     latencyEl.textContent = peakLatencyMs > 0 ? `${Math.round(peakLatencyMs)} ms (+~25 ms window)` : "--";
-    if (latestFrame) levelEl.textContent = `${Math.round(latestFrame.levelDb)} dBFS`;
+    if (latestFrame) levelEl.textContent = formatLevel(latestFrame.levelDb, calibration, captureSettings.deviceId ?? "");
+    renderCalibration();
+    exportStateEl.textContent = sessionLog.length > 0 ? `${(sessionLog.length / 100).toFixed(0)} s recorded` : "Nothing recorded yet";
     framesThisSecond = 0; peakLatencyMs = 0; lastDiagnostics = now;
   }
   animationFrame = requestAnimationFrame(tick);

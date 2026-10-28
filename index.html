@@ -129,6 +129,20 @@
             </div>
           </dl>
         </section>
+
+        <section class="tools" aria-label="Level calibration and session export">
+          <div class="tool-group">
+            <label for="splReading">Calibrate level: sound meter reads</label>
+            <input id="splReading" type="number" min="20" max="140" step="1" value="70" inputmode="numeric" /> dB SPL
+            <button id="calibrateButton" type="button" disabled>Calibrate</button>
+            <button id="calibrationReset" type="button" disabled>Reset</button>
+            <span id="calibrationState" role="status">Uncalibrated: showing dBFS (0 = digital full scale)</span>
+          </div>
+          <div class="tool-group">
+            <button id="exportButton" type="button" disabled>Export session (CSV)</button>
+            <span id="exportState" role="status">Nothing recorded yet</span>
+          </div>
+        </section>
       </section>
     </main>
     <script type="module" src="/src/main.ts"></script>
