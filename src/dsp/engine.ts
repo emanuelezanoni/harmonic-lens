@@ -162,33 +162,49 @@ export class AnalysisEngine {
 }
 
 /**
- * Single-frame raw autocorrelation F0 has octave errors and one-frame dropouts.
- * Reject isolated jumps larger than ~a fifth until they persist, and bridge one-frame gaps.
+ * Single-frame raw autocorrelation F0 has octave errors, onset glitches (aspiration noise at voicing
+ * start can read as a 400-500 Hz "pitch") and one-frame dropouts. A new track must be confirmed by
+ * `startFrames` consistent frames; a young track is corrected after `startFrames`, a mature one
+ * only after `persistFrames`; one- or two-frame gaps are bridged.
  */
 export class PitchTracker {
   private current: number | null = null;
-  private candidate: number | null = null;
-  private candidateCount = 0;
+  private pending: number | null = null;
+  private pendingCount = 0;
   private misses = 0;
+  private age = 0;
 
-  constructor(private readonly maxJumpOctaves = 0.4, private readonly persistFrames = 3, private readonly maxGapFrames = 2) {}
+  constructor(
+    private readonly maxJumpOctaves = 0.4,
+    private readonly persistFrames = 3,
+    private readonly maxGapFrames = 2,
+    private readonly startFrames = 2,
+    private readonly youngFrames = 6
+  ) {}
 
-  reset(): void { this.current = this.candidate = null; this.candidateCount = this.misses = 0; }
+  reset(): void { this.current = this.pending = null; this.pendingCount = this.misses = this.age = 0; }
 
   update(f0: number | null): number | null {
     if (f0 === null || !Number.isFinite(f0)) {
       this.misses += 1;
-      if (this.misses > this.maxGapFrames) { this.current = this.candidate = null; this.candidateCount = 0; }
-      return this.current !== null && this.misses <= this.maxGapFrames ? this.current : null;
+      this.pending = null; this.pendingCount = 0;
+      if (this.misses > this.maxGapFrames) { this.current = null; this.age = 0; }
+      return this.current;
     }
     this.misses = 0;
-    if (this.current === null || Math.abs(Math.log2(f0 / this.current)) <= this.maxJumpOctaves) {
-      this.current = f0; this.candidate = null; this.candidateCount = 0;
+    if (this.current !== null && this.near(f0, this.current)) {
+      this.current = f0; this.age += 1; this.pending = null; this.pendingCount = 0;
       return f0;
     }
-    if (this.candidate !== null && Math.abs(Math.log2(f0 / this.candidate)) <= this.maxJumpOctaves) this.candidateCount += 1;
-    else { this.candidate = f0; this.candidateCount = 1; }
-    if (this.candidateCount >= this.persistFrames) { this.current = f0; this.candidate = null; this.candidateCount = 0; return f0; }
+    if (this.pending !== null && this.near(f0, this.pending)) this.pendingCount += 1;
+    else { this.pending = f0; this.pendingCount = 1; }
+    const needed = this.current === null || this.age < this.youngFrames ? this.startFrames : this.persistFrames;
+    if (this.pendingCount >= needed) {
+      this.current = f0; this.age = this.pendingCount; this.pending = null; this.pendingCount = 0;
+      return f0;
+    }
     return this.current;
   }
+
+  private near(a: number, b: number): boolean { return Math.abs(Math.log2(a / b)) <= this.maxJumpOctaves; }
 }

@@ -81,17 +81,27 @@ test("spectrum places a pure tone in the right row", () => {
   assert.ok(Math.abs(peakRow - 50) <= 2, `1 kHz should sit near row 50 (20 Hz/row), got ${peakRow}`);
 });
 
-test("pitch tracker bridges short gaps and rejects isolated octave jumps", () => {
+test("pitch tracker confirms new tracks, bridges gaps, rejects mature octave jumps", () => {
   const tracker = new PitchTracker();
-  assert.equal(tracker.update(120), 120);
-  assert.equal(tracker.update(null), 120);
-  assert.equal(tracker.update(null), 120);
+  assert.equal(tracker.update(497), null, "one-frame onset glitch is never shown");
   assert.equal(tracker.update(null), null);
-  tracker.update(120);
-  assert.equal(tracker.update(240), 120);
+  assert.equal(tracker.update(109), null);
+  assert.equal(tracker.update(105), 105, "second consistent frame starts the track");
+  assert.equal(tracker.update(null), 105);
+  assert.equal(tracker.update(null), 105);
+  assert.equal(tracker.update(null), null, "three missed frames end the track");
+  for (let i = 0; i < 10; i += 1) tracker.update(120);
+  assert.equal(tracker.update(240), 120, "mature track ignores a single octave jump");
   assert.equal(tracker.update(121), 121);
   tracker.update(240); tracker.update(240);
-  assert.equal(tracker.update(240), 240);
+  assert.equal(tracker.update(240), 240, "a persistent jump is accepted after three frames");
+});
+
+test("a young track whose first value was wrong is corrected in two frames", () => {
+  const tracker = new PitchTracker();
+  tracker.update(400); tracker.update(410); // started on a wrong octave
+  assert.equal(tracker.update(105), 410, "first contradicting frame is held back");
+  assert.equal(tracker.update(104), 104);
 });
 
 /** Source-filter vowel: impulse train through spectral tilt and cascaded resonators. */

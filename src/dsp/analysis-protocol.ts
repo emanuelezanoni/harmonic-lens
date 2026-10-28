@@ -30,3 +30,10 @@ export type WorkerResponse =
 
 /** Message the AudioWorklet sends straight to the analysis worker. */
 export type AudioChunk = { samples: Float32Array; contextTimeS: number };
+
+/** Praat guidance: restrict the pitch search to the speaker's plausible range to avoid octave errors. */
+export function pitchRangeFor(maxFormantHz: number): { floorHz: number; ceilingHz: number } {
+  if (maxFormantHz <= 5000) return { floorHz: 70, ceilingHz: 350 };
+  if (maxFormantHz <= 5500) return { floorHz: 75, ceilingHz: 500 };
+  return { floorHz: 100, ceilingHz: 800 };
+}
