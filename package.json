@@ -59,11 +59,15 @@
     "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
     "mac": {
       "category": "public.app-category.music",
-      "identity": null,
-      "target": ["zip"],
+      "identity": "-",
+      "target": [
+        "zip"
+      ],
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Harmonic Lens uses your microphone to render a local live spectrogram."
-      }
+      },
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "win": {
       "target": [

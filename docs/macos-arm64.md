@@ -21,11 +21,12 @@ codesign -d --entitlements :- "/tmp/harmonic-lens-arm64/Harmonic Lens.app" 2>&1
 
 Expected executable architecture: `arm64`. Expected plist: non-empty microphone
 purpose string. Absence of a custom microphone entitlement is intentional for
-this non-sandboxed, non-Mac-App-Store build. `build.mac.identity: null` prevents
-electron-builder from applying an implicit ad-hoc signature: 26.0.13+ has a
-reported macOS capture/TCC regression in that mode. Unsigned output may require
-explicit approval in System Settings and is not suitable for public distribution.
-Replace the null identity with Developer ID signing plus notarization for release.
+this non-sandboxed, non-Mac-App-Store build. `build.mac.identity` is `"-"`
+(ad-hoc) with `hardenedRuntime: false`. `null` skips signing and leaves an unsealed bundle that Apple Silicon
+will not launch; the 26.0.13+ microphone regression (electron-builder #9529) comes from hardened runtime
+taking effect on an ad-hoc signature, which `hardenedRuntime: false` avoids. First launch of a downloaded copy
+needs right-click Open or `xattr -dr com.apple.quarantine`. Replace the ad-hoc identity with Developer ID
+signing plus notarization for a trusted release.
 
 ## Required physical-Mac runtime checks
 

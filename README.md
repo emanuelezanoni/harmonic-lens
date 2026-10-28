@@ -90,31 +90,45 @@ npm run dev:desktop
 Use localhost or HTTPS. `npm run package:linux` produces
 `release/Harmonic Lens-<version>.AppImage`; artifacts are unsigned.
 
-## macOS Apple Silicon
+## macOS (Apple Silicon and Intel)
 
-`npm run package:mac` builds arm64 ZIP on macOS. `package:mac:x64` remains
-available for Intel; `package:mac:universal` is optional when one combined
-artifact is required. CI builds arm64 natively on GitHub's `macos-15` Apple
-Silicon runner. This project has no native Node modules, so its JS/WASM payload
-does not need per-architecture compilation.
+CI builds one **universal** ZIP (`harmonic-lens-<version>-mac-universal.zip`, arm64 + x64) on GitHub's
+`macos-15` runner, so there is no architecture to choose. `package:mac` (arm64) and `package:mac:x64` stay
+available. The project has no native Node modules, so the JS/WASM payload needs no per-architecture build.
 
-Packaged `Info.plist` includes `NSMicrophoneUsageDescription`. Electron's main
-process allows audio-only media requests from the exact top-level app page and,
-on macOS, asks TCC for microphone access. A denial is not re-prompted: enable
-Harmonic Lens in **System Settings → Privacy & Security → Microphone**, quit,
-then reopen it. For local reset testing:
+**Signing.** `build.mac.identity` is `"-"` (ad-hoc) with `hardenedRuntime: false`. Both halves matter:
+
+- `identity: null` makes electron-builder skip signing entirely. The unpacked bundle then has no
+  `_CodeSignature`, and Apple Silicon refuses to launch an edited, unsealed Electron bundle (the "app is
+  damaged"/will not open symptom).
+- electron-builder [#9529](https://github.com/electron-userland/electron-builder/issues/9529) reported silent
+  microphone tracks for ad-hoc builds. The cause is hardened runtime becoming effective once a signature
+  exists, which then needs the `audio-input` entitlement. Ad-hoc with `hardenedRuntime: false` works,
+  microphone included, so no entitlement file is needed.
+
+Artifacts are not notarized, so the first launch of a downloaded copy needs one approval:
+right-click the app, choose **Open**, or run `xattr -dr com.apple.quarantine "/Applications/Harmonic Lens.app"`.
+Developer ID signing and notarization would remove this. The packaged app requires macOS 13 or newer (Electron 44).
+
+Packaged `Info.plist` includes `NSMicrophoneUsageDescription`. Electron's main process allows audio-only
+media requests from the exact top-level app page and, on macOS, asks TCC for microphone access. A denial is
+not re-prompted: enable Harmonic Lens in **System Settings → Privacy & Security → Microphone**, quit, then
+reopen it. For local reset testing:
 
 ```sh
 tccutil reset Microphone org.harmoniclens.app
 ```
 
-No custom macOS entitlement file is included. Stock, non-Mac-App-Store Electron
-does not require one for microphone capture. `build.mac.identity` is explicitly
-`null`, keeping test/CI artifacts truly unsigned instead of implicitly ad-hoc
-signed; this avoids a current electron-builder 26.0.13+ TCC/capture regression.
-Artifacts are not notarized. Do not distribute them as trusted releases until
-Developer ID signing/notarization replaces that setting. Physical-Mac checklist
-and inspection commands: [macOS arm64 verification](docs/macos-arm64.md).
+The macOS runtime itself is not exercised in CI: run the checklist in
+[macOS verification](docs/macos-arm64.md) on a physical Mac.
+
+## Desktop smoke test
+
+`tools/e2e/run_electron.py` launches the real Electron app (production permission handlers with
+`HL_REAL_PERMISSIONS=1`) under Xvfb with a fake microphone and fails unless F0 and formants appear without
+page errors. CI runs it on the Linux build. `tools/e2e/check_lifecycle.py` stresses start/stop/restart and
+live microphone switching. On Ubuntu 24.04+ an AppImage may need `--no-sandbox` because of the AppArmor
+user-namespace restriction.
 
 ## Verification boundary
 

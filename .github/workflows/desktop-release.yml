@@ -18,10 +18,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - label: macOS arm64 ZIP
+          - label: macOS universal ZIP (Apple Silicon + Intel)
             os: macos-15
-            command: npm run package:mac
-            artifact: harmonic-lens-*-mac-arm64.zip
+            command: npm run package:mac:universal
+            artifact: harmonic-lens-*-mac-universal.zip
           - label: Windows portable
             os: windows-latest
             command: npm run package:win
@@ -41,6 +41,14 @@ jobs:
       - run: ${{ matrix.command }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      # The app must actually open and hear a (fake) microphone, not just build.
+      - name: Smoke test (Linux, Electron + fake microphone)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb python3-pip
+          python3 -m pip install --break-system-packages playwright numpy scipy
+          python3 tools/e2e/synth_vowels.py /tmp/vowels
+          HL_REAL_PERMISSIONS=1 xvfb-run -a python3 tools/e2e/run_electron.py /tmp/vowels.wav /tmp/electron 10
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.label }}
