@@ -27,6 +27,9 @@ export class SpectrogramView {
   private lastTimeS: number | null = null;
   private reference = -30;
   private readonly ramp: Uint8Array;
+  /** Row of each formant slot in the previous painted column (null = absent), so tracks are drawn as connected lines. */
+  private readonly prevFormantY: (number | null)[] = formantColors.map(() => null);
+  private readonly prevFormantHz: number[] = formantColors.map(() => 0);
 
   private readonly pitchCtx: CanvasRenderingContext2D;
 
@@ -61,6 +64,7 @@ export class SpectrogramView {
   }
 
   clear(): void {
+    this.prevFormantY.fill(null);
     this.queue.length = 0;
     this.lastTimeS = null;
     this.ctx.fillStyle = "#050608";
@@ -79,7 +83,7 @@ export class SpectrogramView {
     if (this.queue.length > maxQueue) this.queue.splice(0, this.queue.length - maxQueue);
   }
 
-  discardQueue(): void { this.queue.length = 0; this.lastTimeS = null; }
+  discardQueue(): void { this.queue.length = 0; this.lastTimeS = null; this.prevFormantY.fill(null); }
 
   /** Paint everything queued; returns number of frames painted. */
   paint(overlay: Overlay): number {
@@ -162,7 +166,27 @@ export class SpectrogramView {
     };
     frame.theoreticalHz.forEach((hz, index) => { if (overlay.harmonicEnabled[index]) mark(hz, overlay.harmonicColors[index], 1, 0.6); });
     mark(frame.f0Hz, "#ffffff", 2);
-    if (overlay.showFormants) frame.formants.slice(0, shownFormants).forEach((f, index) => mark(f.frequencyHz, formantColors[index], 3));
+    if (overlay.showFormants) {
+      formantColors.forEach((color, index) => {
+        const f = frame.formants[index];
+        if (!f || !(f.frequencyHz >= 0 && f.frequencyHz <= this.maxHz)) { this.prevFormantY[index] = null; return; }
+        const y = Math.round((1 - f.frequencyHz / this.maxHz) * (height - 1));
+        // A jump over ~25 % in one 10 ms column is an onset glitch or a relabel, not a glide: no connector.
+        const connect = this.prevFormantY[index] !== null && Math.abs(f.frequencyHz / this.prevFormantHz[index] - 1) < 0.25;
+        const from = connect ? (this.prevFormantY[index] as number) : y;
+        this.prevFormantY[index] = y;
+        this.prevFormantHz[index] = f.frequencyHz;
+        // Vertical run from the previous column's row to this one: a fast glide stays one connected line.
+        const lo = Math.min(from, y), hi = Math.max(from, y);
+        const [r, g, b] = hex(color);
+        for (let yy = Math.max(0, lo - 1); yy <= Math.min(height - 1, hi + 1); yy += 1) {
+          for (let c = 0; c < dx; c += 1) {
+            const o = (yy * imageWidth + x0 + c) * 4;
+            data[o] = r; data[o + 1] = g; data[o + 2] = b;
+          }
+        }
+      });
+    } else this.prevFormantY.fill(null);
   }
 
   private buildFrequencyAxis(): void {
