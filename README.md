@@ -26,8 +26,10 @@ of record-then-inspect.
 - Electron has `contextIsolation`, sandbox, no Node integration, temporary profile, audio-only
   permission for the trusted main page. No recordings or settings are persisted.
 
-Not implemented: recording/export, calibration, saved settings, formant continuity tracking
-(spurious poles can appear, as in Praat itself), and a manually tested desktop release.
+Formants F1-F4 are tracked over time (`src/dsp/formants/tracker.ts`): poles are assigned to slots by
+dynamic programming with temporal continuity, a 3-frame median, and no history across unvoiced frames.
+
+Not implemented: recording/export, calibration, saved settings, and a manually tested desktop release.
 
 ## End-to-end check
 
@@ -38,6 +40,22 @@ vowels (a, i, u) and fails on regressions (F0 coverage, formants present, latenc
 python3 tools/e2e/synth_vowels.py /tmp/vowels
 python3 tools/e2e/run_app.py /tmp/vowels.wav /tmp/run 9   # needs playwright + chromium; builds dist/ first
 ```
+
+`tools/e2e/make_real_vowels.py` builds the same kind of fake-mic WAV from human recordings
+(Hillenbrand et al. 1995, 1668 tokens with hand-checked formants; not vendored, fetch it separately).
+
+## Formant benchmark
+
+`tools/bench/hillenbrand-bench.ts` (steady-state point) and `tools/bench/hillenbrand-track-bench.ts`
+(every frame of the vowel nucleus, cold start from the token onset) score F1-F3 against Hillenbrand's
+measurements. Fraction of frames with >20 % error (`--raw` = unfiltered poles, no tracker):
+
+| condition | raw poles | tracked |
+|---|---|---|
+| clean, voice type matched | 2.35 % | 1.46 % |
+| voice type set wrong (`--max 5500` for all) | 3.82 % | 1.03 % |
+| white noise, SNR 30 dB (`--snr 30`) | 2.56 % | 2.13 % |
+| white noise, SNR 20 dB | 6.47 % | 6.53 % |
 
 Real-microphone behaviour remains host-dependent and untested here.
 
