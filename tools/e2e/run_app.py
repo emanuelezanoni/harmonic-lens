@@ -69,6 +69,23 @@ def main(wav, out, seconds=9.0):
         "analysis fps >= 80": bool(fps) and min(fps) >= 80,
         "no page errors": not any(l.startswith("pageerror") for l in logs),
     }
+    truth_path = os.path.splitext(wav)[0] + ".truth.json"
+    if os.path.exists(truth_path):
+        # Real-voice mode: gaps are expected, so replace the continuous-voicing checks with per-token recall.
+        for k in ("f0 coverage >= 85%", "formants reported >= 85%", "f0 within 105-175 Hz"): checks.pop(k)
+        f0v = [float(re.search(r"F0 ([\d.]+)", s["pitch"]).group(1)) for s in voiced]
+        share = sum(80 <= v <= 330 for v in f0v) / max(1, len(f0v))
+        print(f"voiced snapshots with F0 in 80-330 Hz: {100 * share:.0f}% ({len(f0v)} voiced)")
+        checks["real voices: >= 85% of F0 readings in 80-330 Hz"] = share >= 0.85
+        tokens = json.load(open(truth_path))["tokens"]
+        seen = []
+        for token in tokens:
+            hits = 0
+            for snap in timeline:
+                got = [float(v) for v in re.findall(r"F\d (\d+) Hz", snap["formants"])]
+                if len(got) >= 2 and all(abs(got[k] - token["formants"][k]) / token["formants"][k] < 0.12 for k in (0, 1)): hits += 1
+            seen.append(hits); print(f"token {token['id']}: F1/F2 within 12% of measured in {hits} snapshots")
+        checks["every token seen with measured F1/F2 (>=3 snapshots)"] = all(h >= 3 for h in seen)
     for name, ok in checks.items(): print(("PASS " if ok else "FAIL ") + name)
     if not all(checks.values()): sys.exit(1)
 

@@ -2,10 +2,12 @@ import "./styles.css";
 import { AnalysisClient } from "./dsp/analysis-client";
 import { defaultSettings, type AnalysisFrame, type AnalysisSettings } from "./dsp/analysis-protocol";
 import { formatAnalysisSampleRates, formatCaptureChannels, formatInputDiagnostic, listAudioInputOptions, mapGetUserMediaError, requestMicrophone, selectedDeviceIsAvailable, type AudioInputOption, type CaptureSettings } from "./audio-input";
-import { SpectrogramView, formantColors } from "./ui/spectrogram-view";
+import { SpectrogramView, formantColors, shownFormants } from "./ui/spectrogram-view";
 
 const partialCount = 8;
 const panelRefreshMs = 100;
+/** Keep the last voiced readout visible (dimmed) this long after the voice stops, so numbers can be read. */
+const readoutHoldMs = 1500;
 const harmonicColors = ["#ff5c8a", "#ff9f43", "#f6d743", "#67d978", "#38c8e8", "#6395ff", "#a77bff", "#ef72e8"];
 
 const startButton = requiredElement<HTMLButtonElement>("#startButton");
@@ -30,7 +32,7 @@ const pitchStateEl = requiredElement<HTMLElement>("#pitchState");
 const formantStateEl = requiredElement<HTMLElement>("#formantState");
 const harmonicTogglesEl = requiredElement<HTMLElement>("#harmonicToggles");
 const harmonicRowsEl = requiredElement<HTMLTableSectionElement>("#harmonicRows");
-const view = new SpectrogramView(requiredElement<HTMLCanvasElement>("#spectrogram"), requiredElement<HTMLElement>("#freqAxis"), requiredElement<HTMLElement>("#timeAxis"));
+const view = new SpectrogramView(requiredElement<HTMLCanvasElement>("#spectrogram"), requiredElement<HTMLElement>("#freqAxis"), requiredElement<HTMLElement>("#timeAxis"), requiredElement<HTMLCanvasElement>("#pitchCanvas"), requiredElement<HTMLElement>("#pitchAxis"));
 
 let audioContext: AudioContext | null = null;
 let mediaStream: MediaStream | null = null;
@@ -48,8 +50,11 @@ let lastPanelRender = 0;
 let paused = false;
 let showFormants = true;
 let latestFrame: AnalysisFrame | null = null;
+let lastVoicedFrame: AnalysisFrame | null = null;
+let lastVoicedAt = 0;
 let praatAvailable: boolean | null = null;
-const enabledPartials = Array.from({ length: partialCount }, () => true);
+// Harmonic guides clutter the formant tracks, so they start hidden; the table always shows measurements.
+const enabledPartials = Array.from({ length: partialCount }, () => false);
 let settings: AnalysisSettings = { ...defaultSettings };
 let selectedDeviceId = "";
 let selectedDeviceMissing = false;
@@ -202,7 +207,7 @@ async function stopInternal(updateStatus: boolean): Promise<void> {
   client = null;
   audioContext = null; mediaStream = null; sourceNode = null; workletNode = null; silentSink = null;
   framesThisSecond = 0; peakLatencyMs = 0; lastDiagnostics = performance.now(); lastPanelRender = 0;
-  sampleRate = 0; captureSettings = {}; workletChannelCount = null; latestFrame = null; praatAvailable = null;
+  sampleRate = 0; captureSettings = {}; workletChannelCount = null; latestFrame = null; lastVoicedFrame = null; praatAvailable = null;
   paused = false; pauseButton.textContent = "Pause";
   sampleRateEl.textContent = "--"; selectedInputEl.textContent = "--"; actualInputEl.textContent = "unknown";
   captureChannelsEl.textContent = "unknown → mono average";
@@ -224,6 +229,7 @@ function onFrame(frame: AnalysisFrame, generation: number): void {
   if (latencyMs > peakLatencyMs) peakLatencyMs = latencyMs;
   if (paused) return;
   latestFrame = frame;
+  if (frame.f0Hz !== null || frame.formants.length > 0) { lastVoicedFrame = frame; lastVoicedAt = performance.now(); }
   view.enqueue(frame);
 }
 
@@ -249,7 +255,7 @@ function createHarmonicControls(): void {
     button.type = "button";
     button.className = "harmonic-toggle";
     button.style.setProperty("--harmonic-color", harmonicColors[index]);
-    button.setAttribute("aria-pressed", "true");
+    button.setAttribute("aria-pressed", "false");
     button.setAttribute("aria-label", `Toggle H${partial} harmonic guide`);
     button.innerHTML = `<span class="harmonic-dot" aria-hidden="true"></span>H${partial}`;
     button.addEventListener("click", () => {
@@ -261,25 +267,30 @@ function createHarmonicControls(): void {
   }
 }
 
-function renderPanel(frame: AnalysisFrame | null): void {
+function renderPanel(live: AnalysisFrame | null): void {
+  const hasVoice = live !== null && (live.f0Hz !== null || live.formants.length > 0);
+  const held = !hasVoice && lastVoicedFrame !== null && performance.now() - lastVoicedAt < readoutHoldMs;
+  const frame = held ? lastVoicedFrame : live;
+  pitchStateEl.classList.toggle("stale", held);
+  formantStateEl.classList.toggle("stale", held);
   pitchStateEl.textContent = frame && frame.f0Hz !== null
     ? `F0 ${formatHz(frame.f0Hz)} Hz · HNR ${frame.hnrDb === null ? "--" : `${frame.hnrDb.toFixed(1)} dB`}`
     : praatAvailable === false ? "Pitch unavailable (Praat WASM failed to load)" : "No pitch";
   formantStateEl.replaceChildren();
   formantStateEl.append("Formants: ");
   if (!frame || frame.formants.length === 0) formantStateEl.append("--");
-  else frame.formants.slice(0, 4).forEach((formant, index) => {
+  else frame.formants.slice(0, shownFormants).forEach((formant, index) => {
     const span = document.createElement("span");
     span.style.color = formantColors[index];
     span.textContent = `F${index + 1} ${Math.round(formant.frequencyHz)} Hz`;
-    formantStateEl.append(span, index < Math.min(4, frame.formants.length) - 1 ? "  ·  " : "");
+    formantStateEl.append(span, index < Math.min(shownFormants, frame.formants.length) - 1 ? "  ·  " : "");
   });
   harmonicRowsEl.replaceChildren();
   for (let index = 0; index < partialCount; index += 1) {
     const enabled = enabledPartials[index], theory = frame?.theoreticalHz[index] ?? null, peak = frame?.peaks[index] ?? null;
     const row = document.createElement("tr");
-    row.classList.toggle("harmonic-disabled", !enabled);
-    row.innerHTML = `<th scope="row" class="partial-label" style="--harmonic-color: ${harmonicColors[index]}">H${index + 1}</th><td>${enabled && theory !== null ? `${formatHz(theory)} Hz` : "--"}</td><td>${enabled && peak ? `${formatHz(peak.frequencyHz)} Hz` : "--"}</td><td>${enabled && peak ? `${peak.levelDb.toFixed(1)} dBFS` : "--"}</td><td>${enabled ? "On" : "Off"}</td>`;
+    row.classList.toggle("harmonic-disabled", false);
+    row.innerHTML = `<th scope="row" class="partial-label" style="--harmonic-color: ${harmonicColors[index]}">H${index + 1}</th><td>${theory !== null ? `${formatHz(theory)} Hz` : "--"}</td><td>${peak ? `${formatHz(peak.frequencyHz)} Hz` : "--"}</td><td>${peak ? `${peak.levelDb.toFixed(1)} dBFS` : "--"}</td><td>${enabled ? "Shown on plot" : "Hidden"}</td>`;
     harmonicRowsEl.append(row);
   }
 }

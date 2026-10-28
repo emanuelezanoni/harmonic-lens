@@ -1,6 +1,9 @@
 import type { AnalysisFrame } from "../dsp/analysis-protocol";
 
-export const formantColors = ["#ff6b6b", "#5cff8a", "#5cc8ff", "#ffd45c"];
+export const formantColors = ["#ff6b6b", "#5cff8a", "#5cc8ff"];
+/** F4 and above are computed (the LPC needs them) but not drawn: too unstable to be useful. */
+export const shownFormants = formantColors.length;
+const pitchMinHz = 60, pitchMaxHz = 800, pitchGridHz = [100, 200, 400];
 const pixelsPerSecond = 100;
 const dynamicRangeDb = 60;
 const maxQueue = 300;
@@ -25,10 +28,21 @@ export class SpectrogramView {
   private reference = -30;
   private readonly ramp: Uint8Array;
 
-  constructor(private readonly canvas: HTMLCanvasElement, private readonly freqAxis: HTMLElement, private readonly timeAxis: HTMLElement) {
+  private readonly pitchCtx: CanvasRenderingContext2D;
+
+  constructor(private readonly canvas: HTMLCanvasElement, private readonly freqAxis: HTMLElement, private readonly timeAxis: HTMLElement, private readonly pitchCanvas: HTMLCanvasElement, pitchAxis: HTMLElement) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas 2D context unavailable.");
     this.ctx = ctx;
+    const pitchCtx = pitchCanvas.getContext("2d");
+    if (!pitchCtx) throw new Error("Canvas 2D context unavailable.");
+    this.pitchCtx = pitchCtx;
+    for (const hz of pitchGridHz) {
+      const tick = document.createElement("span");
+      tick.textContent = `${hz} Hz`;
+      tick.style.bottom = `${this.pitchFraction(hz) * 100}%`;
+      pitchAxis.append(tick);
+    }
     this.ramp = new Uint8Array(256 * 3);
     for (let i = 0; i < 256; i += 1) {
       const t = i / 255;
@@ -51,7 +65,14 @@ export class SpectrogramView {
     this.lastTimeS = null;
     this.ctx.fillStyle = "#050608";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.pitchCtx.fillStyle = "#07090b";
+    this.pitchCtx.fillRect(0, 0, this.pitchCanvas.width, this.pitchCanvas.height);
+    this.pitchCtx.fillStyle = "rgba(255,255,255,0.12)";
+    for (const hz of pitchGridHz) this.pitchCtx.fillRect(0, this.pitchY(hz), this.pitchCanvas.width, 1);
   }
+
+  private pitchFraction(hz: number): number { return Math.log(hz / pitchMinHz) / Math.log(pitchMaxHz / pitchMinHz); }
+  private pitchY(hz: number): number { return Math.round((1 - this.pitchFraction(hz)) * (this.pitchCanvas.height - 1)); }
 
   enqueue(frame: AnalysisFrame): void {
     this.queue.push(frame);
@@ -87,7 +108,24 @@ export class SpectrogramView {
     });
     if (total < width) this.ctx.drawImage(this.canvas, total, 0, width - total, height, 0, 0, width - total, height);
     this.ctx.putImageData(image, width - total, 0);
+    this.paintPitch(frames, columns, total);
     return frames.length;
+  }
+
+  private paintPitch(frames: AnalysisFrame[], columns: number[], total: number): void {
+    const width = this.pitchCanvas.width, height = this.pitchCanvas.height;
+    if (total < width) this.pitchCtx.drawImage(this.pitchCanvas, total, 0, width - total, height, 0, 0, width - total, height);
+    this.pitchCtx.fillStyle = "#07090b";
+    this.pitchCtx.fillRect(width - total, 0, total, height);
+    this.pitchCtx.fillStyle = "rgba(255,255,255,0.12)";
+    for (const hz of pitchGridHz) this.pitchCtx.fillRect(width - total, this.pitchY(hz), total, 1);
+    this.pitchCtx.fillStyle = "#ffffff";
+    let x = width - total;
+    frames.forEach((frame, index) => {
+      const dx = Math.min(columns[index], width - x);
+      if (frame.f0Hz !== null && frame.f0Hz >= pitchMinHz && frame.f0Hz <= pitchMaxHz) this.pitchCtx.fillRect(x, this.pitchY(frame.f0Hz) - 1, dx, 3);
+      x += dx;
+    });
   }
 
   private referenceUpdate(spectrum: Float32Array): void {
@@ -123,8 +161,8 @@ export class SpectrogramView {
       }
     };
     frame.theoreticalHz.forEach((hz, index) => { if (overlay.harmonicEnabled[index]) mark(hz, overlay.harmonicColors[index], 1, 0.6); });
-    mark(frame.f0Hz, "#ffffff", 3);
-    if (overlay.showFormants) frame.formants.slice(0, 4).forEach((f, index) => mark(f.frequencyHz, formantColors[index], 3));
+    mark(frame.f0Hz, "#ffffff", 2);
+    if (overlay.showFormants) frame.formants.slice(0, shownFormants).forEach((f, index) => mark(f.frequencyHz, formantColors[index], 3));
   }
 
   private buildFrequencyAxis(): void {

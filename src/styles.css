@@ -299,3 +299,15 @@ tbody tr:hover { background: rgb(255 255 255 / 2.5%); }
 .plot canvas { width: 100%; height: clamp(260px, 50vh, 520px); aspect-ratio: auto; min-height: 0; max-height: none; }
 .meter-row { margin-top: 18px; }
 .time-axis span { white-space: nowrap; }
+
+.pitch-strip { display: grid; grid-template-columns: 52px 1fr; column-gap: 6px; margin-top: 4px; }
+.pitch-strip canvas { grid-column: 2; width: 100%; height: 90px; aspect-ratio: auto; min-height: 0; }
+.pitch-strip .freq-axis { grid-column: 1; }
+.formant-state.stale, #pitchState.stale { opacity: 0.55; }
+
+.plot { grid-template-rows: auto auto 22px; }
+.plot canvas#pitchCanvas { grid-column: 2; grid-row: 2; width: 100%; height: 90px; aspect-ratio: auto; margin-top: 4px; }
+.plot .pitch-axis { grid-column: 1; grid-row: 2; margin-top: 4px; }
+.plot .time-axis { grid-row: 3; }
+.pitch-strip { display: none; }
+.axis-caption { margin: 4px 0 0; color: #7f8a94; font-size: 0.72rem; }
