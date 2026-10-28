@@ -41,19 +41,36 @@ def main(wav, out, seconds=9.0):
               latency: document.querySelector('#latency').textContent,
               fps: document.querySelector('#framesPerSecond').textContent,
               level: document.querySelector('#level').textContent,
+              formants: document.querySelector('#formantState').textContent,
               rows: [...document.querySelectorAll('#harmonicRows tr')].map(r => [...r.children].map(c => c.textContent))})""")
             snap["t"] = round(time.time() - t0, 3)
             timeline.append(snap)
             time.sleep(0.05)
-        page.screenshot(path=out + ".png")
+        page.screenshot(path=out + ".png", full_page=True)
         browser.close()
     srv.shutdown()
     json.dump({"timeline": timeline, "logs": logs}, open(out + ".timeline.json", "w"), indent=1)
     print("logs:", *logs[:10], sep="\n  ")
     print("statuses:", sorted({s["status"] for s in timeline}))
     f0s = [float(m.group(1)) for s in timeline if (m := re.search(r"F0 ([\d.]+) Hz", s["pitch"]))]
+    print("sample formants:", [s["formants"] for s in timeline[::40]])
     print(f"samples={len(timeline)} with_f0={len(f0s)}", f"f0 min/max={min(f0s)}/{max(f0s)}" if f0s else "")
     print("latency:", sorted({s["latency"] for s in timeline}), "fps:", sorted({s["fps"] for s in timeline}))
+    # Gate (voiced synthetic input, 110-170 Hz): fails the process on regression.
+    settled = [s for s in timeline if s["t"] > 2.5]  # skip warm-up (WASM load, partial first fps window)
+    voiced = [s for s in settled if re.search(r"F0 ([\d.]+) Hz", s["pitch"])]
+    lat = [int(m.group(1)) for s in settled if (m := re.match(r"(\d+) ms", s["latency"]))]
+    fps = [int(s["fps"]) for s in settled if s["fps"].isdigit()]
+    checks = {
+        "f0 coverage >= 85%": len(voiced) / max(1, len(settled)) >= 0.85,
+        "f0 within 105-175 Hz": all(105 <= float(re.search(r"F0 ([\d.]+)", s["pitch"]).group(1)) <= 175 for s in voiced),
+        "formants reported >= 85%": sum("F1" in s["formants"] for s in settled) / max(1, len(settled)) >= 0.85,
+        "transport latency p95 < 60 ms": bool(lat) and sorted(lat)[int(0.95 * (len(lat) - 1))] < 60,
+        "analysis fps >= 80": bool(fps) and min(fps) >= 80,
+        "no page errors": not any(l.startswith("pageerror") for l in logs),
+    }
+    for name, ok in checks.items(): print(("PASS " if ok else "FAIL ") + name)
+    if not all(checks.values()): sys.exit(1)
 
 if __name__ == "__main__":
     main(sys.argv[1], sys.argv[2], float(sys.argv[3]) if len(sys.argv) > 3 else 9.0)

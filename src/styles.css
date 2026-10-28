@@ -275,3 +275,27 @@ tbody tr:hover { background: rgb(255 255 255 / 2.5%); }
 
   .harmonics-heading { flex-direction: column; }
 }
+
+.actions { flex-wrap: wrap; }
+.legend { display: inline-flex; align-items: center; gap: 5px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.formant-state { margin: 0 0 8px; font-variant-numeric: tabular-nums; color: #cfd6dc; }
+.plot {
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  grid-template-rows: auto 22px;
+  column-gap: 6px;
+}
+.plot canvas { grid-column: 2; grid-row: 1; aspect-ratio: 5 / 2; }
+.freq-axis { position: relative; grid-column: 1; grid-row: 1; }
+.freq-axis span { position: absolute; right: 0; transform: translateY(50%); color: #7f8a94; font-size: 0.7rem; }
+.time-axis { position: relative; grid-column: 2; grid-row: 2; }
+.time-axis span { position: absolute; top: 4px; transform: translateX(50%); color: #7f8a94; font-size: 0.7rem; }
+.harmonic-controls { display: flex; margin-right: 8px; }
+
+.visualizer-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.visualizer-heading h2 { margin-right: auto; }
+.plot canvas { width: 100%; height: clamp(260px, 50vh, 520px); aspect-ratio: auto; min-height: 0; max-height: none; }
+.meter-row { margin-top: 18px; }
+.time-axis span { white-space: nowrap; }

@@ -21,10 +21,71 @@
               </select>
               <span id="audioInputHint" class="sr-only">Choose microphone for next start</span>
             </label>
+            <label class="audio-input-control" for="voiceType">
+              <span>Voice</span>
+              <select id="voiceType">
+                <option value="5000">Low (max formant 5000 Hz)</option>
+                <option value="5500" selected>Medium (5500 Hz)</option>
+                <option value="7000">High / child (7000 Hz)</option>
+              </select>
+            </label>
+            <label class="audio-input-control" for="rangeSelect">
+              <span>Range</span>
+              <select id="rangeSelect">
+                <option value="3000">0–3 kHz</option>
+                <option value="5000" selected>0–5 kHz</option>
+                <option value="8000">0–8 kHz</option>
+              </select>
+            </label>
+            <label class="audio-input-control" for="modeSelect">
+              <span>Spectrogram</span>
+              <select id="modeSelect">
+                <option value="0.005" selected>Wideband (formants)</option>
+                <option value="0.03">Narrowband (harmonics)</option>
+              </select>
+            </label>
             <button id="startButton" type="button">Start microphone</button>
+            <button id="pauseButton" type="button" disabled>Pause</button>
             <button id="stopButton" type="button" disabled>Stop</button>
           </div>
         </header>
+
+        <section class="visualizer" aria-labelledby="visualizer-title">
+          <div class="visualizer-heading">
+            <h2 id="visualizer-title">Live spectrogram</h2>
+            <span class="legend"><i class="swatch" style="background:#fff"></i>F0</span>
+            <span class="legend"><i class="swatch" style="background:#ff6b6b"></i>F1</span>
+            <span class="legend"><i class="swatch" style="background:#5cff8a"></i>F2</span>
+            <span class="legend"><i class="swatch" style="background:#5cc8ff"></i>F3</span>
+            <span class="legend"><i class="swatch" style="background:#ffd45c"></i>F4</span>
+          </div>
+          <p id="formantState" class="formant-state" role="status">Formants: --</p>
+          <div class="plot">
+            <div id="freqAxis" class="freq-axis" aria-hidden="true"></div>
+            <canvas id="spectrogram" width="1000" height="400" aria-label="Rolling spectrogram with F0 and formant tracks"></canvas>
+            <div id="timeAxis" class="time-axis" aria-hidden="true"></div>
+          </div>
+        </section>
+
+        <section class="harmonics" aria-labelledby="harmonics-title">
+          <div class="harmonics-heading">
+            <div>
+              <h2 id="harmonics-title">Harmonics</h2>
+              <p id="pitchState" role="status">No pitch detected</p>
+            </div>
+            <div class="harmonic-controls"><button id="formantToggle" type="button" class="harmonic-toggle" aria-pressed="true">Formants</button></div>
+            <div id="harmonicToggles" class="harmonic-toggles" aria-label="Harmonic guide visibility"></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <caption class="sr-only">Live harmonic measurements</caption>
+              <thead>
+                <tr><th scope="col">Track</th><th scope="col">Guide n×F0</th><th scope="col">Measured peak</th><th scope="col">Level</th><th scope="col">State</th></tr>
+              </thead>
+              <tbody id="harmonicRows"></tbody>
+            </table>
+          </div>
+        </section>
 
         <section class="meter-row" aria-label="Live diagnostics">
           <dl>
@@ -53,11 +114,11 @@
               <dd id="analysisSampleRate">AudioContext unknown · analysis unknown</dd>
             </div>
             <div>
-              <dt>Audio frames/s</dt>
+              <dt>Analysis frames/s</dt>
               <dd id="framesPerSecond">--</dd>
             </div>
             <div>
-              <dt>Latency</dt>
+              <dt>Audio → screen</dt>
               <dd id="latency">--</dd>
             </div>
             <div>
@@ -65,33 +126,6 @@
               <dd id="level">--</dd>
             </div>
           </dl>
-        </section>
-
-        <section class="visualizer" aria-labelledby="visualizer-title">
-          <div class="visualizer-heading">
-            <h2 id="visualizer-title">Live spectrum</h2>
-            <span>Low frequency</span><span>High frequency</span>
-          </div>
-          <canvas id="spectrogram" width="960" height="420" aria-label="Rolling spectrogram"></canvas>
-        </section>
-
-        <section class="harmonics" aria-labelledby="harmonics-title">
-          <div class="harmonics-heading">
-            <div>
-              <h2 id="harmonics-title">Harmonics</h2>
-              <p id="pitchState" role="status">No pitch detected</p>
-            </div>
-            <div id="harmonicToggles" class="harmonic-toggles" aria-label="Harmonic guide visibility"></div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <caption class="sr-only">Live harmonic measurements</caption>
-              <thead>
-                <tr><th scope="col">Track</th><th scope="col">Guide n×F0</th><th scope="col">Measured peak</th><th scope="col">Level</th><th scope="col">State</th></tr>
-              </thead>
-              <tbody id="harmonicRows"></tbody>
-            </table>
-          </div>
         </section>
       </section>
     </main>
