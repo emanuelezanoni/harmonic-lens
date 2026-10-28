@@ -1,7 +1,8 @@
 import "./styles.css";
 import { AnalysisClient } from "./dsp/analysis-client";
-import { defaultSettings, type AnalysisFrame, type AnalysisSettings } from "./dsp/analysis-protocol";
+import { type AnalysisFrame, type AnalysisSettings } from "./dsp/analysis-protocol";
 import { formatAnalysisSampleRates, formatCaptureChannels, formatInputDiagnostic, listAudioInputOptions, mapGetUserMediaError, requestMicrophone, selectedDeviceIsAvailable, type AudioInputOption, type CaptureSettings } from "./audio-input";
+import { loadSettings, saveSettings } from "./saved-settings";
 import { SpectrogramView, formantColors, shownFormants } from "./ui/spectrogram-view";
 
 const partialCount = 8;
@@ -55,7 +56,14 @@ let lastVoicedAt = 0;
 let praatAvailable: boolean | null = null;
 // Harmonic guides clutter the formant tracks, so they start hidden; the table always shows measurements.
 const enabledPartials = Array.from({ length: partialCount }, () => false);
-let settings: AnalysisSettings = { ...defaultSettings };
+// Restore only values that still exist as options; anything stale falls back to the HTML defaults.
+const saved = loadSettings();
+const restore = (el: HTMLSelectElement, value: string | undefined) => { if (value !== undefined && [...el.options].some((o) => o.value === value)) el.value = value; };
+restore(voiceTypeEl, saved.voiceType); restore(rangeEl, saved.range); restore(modeEl, saved.mode);
+showFormants = saved.showFormants ?? showFormants;
+formantToggle.setAttribute("aria-pressed", String(showFormants));
+let settings: AnalysisSettings = { maxFormantHz: Number(voiceTypeEl.value), spectrumMaxHz: Number(rangeEl.value), spectrumWindowS: Number(modeEl.value) };
+const persist = () => saveSettings({ voiceType: voiceTypeEl.value, range: rangeEl.value, mode: modeEl.value, showFormants });
 let selectedDeviceId = "";
 let selectedDeviceMissing = false;
 let audioInputOptions: AudioInputOption[] = [];
@@ -79,6 +87,7 @@ pauseButton.addEventListener("click", () => setPaused(!paused));
 formantToggle.addEventListener("click", () => {
   showFormants = !showFormants;
   formantToggle.setAttribute("aria-pressed", String(showFormants));
+  persist();
 });
 voiceTypeEl.addEventListener("change", applySettings);
 rangeEl.addEventListener("change", applySettings);
@@ -88,6 +97,7 @@ function applySettings(): void {
   settings = { maxFormantHz: Number(voiceTypeEl.value), spectrumMaxHz: Number(rangeEl.value), spectrumWindowS: Number(modeEl.value) };
   view.setRange(settings.spectrumMaxHz);
   client?.updateSettings(settings);
+  persist();
 }
 
 function setPaused(next: boolean): void {
