@@ -37,6 +37,8 @@ export type EngineConfig = {
   hnrEveryHops?: number;
   /** Report formants only while a pitch track exists (default true): unvoiced noise has poles but no vowel. */
   formantsNeedVoicing?: boolean;
+  /** Consecutive voiced frames before formants are reported (default 3 = 30 ms): onset frames are unreliable. */
+  formantOnsetFrames?: number;
 };
 
 export type FrameResult = {
@@ -65,6 +67,7 @@ export class AnalysisEngine {
   private readonly ring: Float32Array;
   private readonly pitchWindow: number;
   private readonly formantWindow: number;
+  private voicedRun = 0;
   private readonly spectrum: SpectrumAnalyzer;
   private readonly peaks: PeakFinder;
   private readonly pitchScratch: Float32Array;
@@ -106,7 +109,7 @@ export class AnalysisEngine {
   }
 
   reset(): void {
-    this.total = 0; this.lastEmit = 0; this.hopCount = 0; this.hnrHold = null; this.tracker.reset(); this.formants.reset?.(); this.ring.fill(0);
+    this.total = 0; this.lastEmit = 0; this.hopCount = 0; this.hnrHold = null; this.voicedRun = 0; this.tracker.reset(); this.formants.reset?.(); this.ring.fill(0);
   }
 
   push(block: Float32Array): FrameResult | null {
@@ -149,8 +152,10 @@ export class AnalysisEngine {
     const f0Hz = audible ? this.tracker.update(this.pitch.pitch(pitchSamples, sr)) : this.tracker.update(null);
     const hnrDb = f0Hz === null ? this.dropHnr() : this.updateHnr(pitchSamples);
     const voiced = f0Hz !== null;
+    this.voicedRun = voiced ? this.voicedRun + 1 : 0;
     let formants = audible ? this.formants.estimate(this.latest(this.formantWindow, this.formantScratch), voiced) : [];
     if (!voiced && (this.config.formantsNeedVoicing ?? true)) formants = [];
+    else if (voiced && this.voicedRun < (this.config.formantOnsetFrames ?? 3)) formants = [];
 
     const spectrum = new Float32Array(this.spectrumRows);
     this.spectrum.compute(this.latest(this.spectrum.windowSamples, this.spectrumScratch), spectrum);
