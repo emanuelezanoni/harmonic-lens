@@ -37,11 +37,11 @@ def run(wav):
         if other:
             page.select_option("#audioInput", other); page.click("#startButton"); listening("other device")
             # Switching the input while listening must restart on the new device by itself.
-            before = page.inner_text("#actualInput")
+            before = page.text_content("#actualInput")
             page.select_option("#audioInput", "")
             time.sleep(0.5)
             listening("live switch to default")
-            after = page.inner_text("#actualInput")
+            after = page.text_content("#actualInput")
             print(f"live switch: {before!r} -> {after!r}")
             results["live switch changes device"] = before != after
         for i in range(4):  # rapid start/stop cycles must not wedge the page

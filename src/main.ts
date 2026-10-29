@@ -6,6 +6,7 @@ import { formatLevel, loadCalibration, offsetFromReading, saveCalibration, type 
 import { loadSettings, saveSettings } from "./saved-settings";
 import { SessionLog } from "./session-export";
 import { SpectrogramView, formantColors, shownFormants } from "./ui/spectrogram-view";
+import { VowelSpace } from "./ui/vowel-space";
 
 const partialCount = 8;
 const panelRefreshMs = 100;
@@ -41,6 +42,10 @@ const pitchStateEl = requiredElement<HTMLElement>("#pitchState");
 const formantStateEl = requiredElement<HTMLElement>("#formantState");
 const harmonicTogglesEl = requiredElement<HTMLElement>("#harmonicToggles");
 const harmonicRowsEl = requiredElement<HTMLTableSectionElement>("#harmonicRows");
+const levelBarEl = requiredElement<HTMLElement>("#levelBar");
+const levelTrackEl = requiredElement<HTMLElement>("#levelTrack");
+const levelTextEl = requiredElement<HTMLElement>("#levelText");
+const vowelSpace = new VowelSpace(requiredElement<HTMLCanvasElement>("#vowelSpace"));
 const view = new SpectrogramView(requiredElement<HTMLCanvasElement>("#spectrogram"), requiredElement<HTMLElement>("#freqAxis"), requiredElement<HTMLElement>("#timeAxis"), requiredElement<HTMLCanvasElement>("#pitchCanvas"), requiredElement<HTMLElement>("#pitchAxis"));
 
 let audioContext: AudioContext | null = null;
@@ -57,6 +62,9 @@ let lastDiagnostics = performance.now();
 let animationFrame = 0;
 let lastPanelRender = 0;
 let paused = false;
+const readoutHistory: number[][] = [];
+let lastShown: number[] = [];
+let meterDb = -80;
 let calibration: Calibration | null = loadCalibration();
 const recentLevels: number[] = []; // last ~1 s of RMS levels, used by Calibrate
 const sessionLog = new SessionLog();
@@ -74,6 +82,7 @@ restore(voiceTypeEl, saved.voiceType); restore(rangeEl, saved.range); restore(mo
 showFormants = saved.showFormants ?? showFormants;
 formantToggle.setAttribute("aria-pressed", String(showFormants));
 let settings: AnalysisSettings = { maxFormantHz: Number(voiceTypeEl.value), spectrumMaxHz: Number(rangeEl.value), spectrumWindowS: Number(modeEl.value) };
+vowelSpace.setVoiceScale(settings.maxFormantHz);
 const persist = () => saveSettings({ voiceType: voiceTypeEl.value, range: rangeEl.value, mode: modeEl.value, showFormants });
 let selectedDeviceId = "";
 let selectedDeviceMissing = false;
@@ -88,6 +97,8 @@ view.setRange(settings.spectrumMaxHz);
 createHarmonicControls();
 renderPanel(null);
 renderCalibration();
+vowelSpace.draw(performance.now());
+window.addEventListener("resize", () => { if (!audioContext) vowelSpace.draw(performance.now()); });
 void updatePermissionStatus();
 void refreshAudioInputs();
 
@@ -113,6 +124,7 @@ modeEl.addEventListener("change", applySettings);
 function applySettings(): void {
   settings = { maxFormantHz: Number(voiceTypeEl.value), spectrumMaxHz: Number(rangeEl.value), spectrumWindowS: Number(modeEl.value) };
   view.setRange(settings.spectrumMaxHz);
+  vowelSpace.setVoiceScale(settings.maxFormantHz);
   client?.updateSettings(settings);
   persist();
 }
@@ -277,6 +289,9 @@ async function stopInternal(updateStatus: boolean): Promise<void> {
   view.clear();
   renderPanel(null);
   renderCalibration();
+  readoutHistory.length = 0; lastShown = [];
+  meterDb = -80; paintMeter(); levelTextEl.textContent = "--";
+  vowelSpace.clear(); vowelSpace.draw(performance.now());
   startButton.disabled = false;
   audioInputEl.disabled = false;
   if (updateStatus) setStatus("Stopped");
@@ -292,12 +307,25 @@ function onFrame(frame: AnalysisFrame, generation: number): void {
   recentLevels.push(frame.levelDb); if (recentLevels.length > 100) recentLevels.shift();
   if (paused) return;
   sessionLog.add(frame);
+  vowelSpace.push(frame, performance.now());
+  recordReadout(frame);
   latestFrame = frame;
   if (frame.f0Hz !== null || frame.formants.length > 0) { lastVoicedFrame = frame; lastVoicedAt = performance.now(); }
   view.enqueue(frame);
 }
 
+/** Smoothed level for the header meter: fast attack, slow release, -80..0 dBFS mapped to the bar. */
+function paintMeter(): void {
+  const db = latestFrame && !paused ? latestFrame.levelDb : -80;
+  meterDb = db > meterDb ? db : Math.max(db, meterDb - 0.9);
+  const fraction = Math.max(0, Math.min(1, (meterDb + 80) / 80));
+  levelBarEl.style.width = `${(fraction * 100).toFixed(1)}%`;
+  levelTrackEl.setAttribute("aria-valuenow", String(Math.round(meterDb)));
+}
+
 function tick(now = performance.now()): void {
+  paintMeter();
+  vowelSpace.draw(now);
   const painted = paused ? 0 : view.paint({ harmonicColors, harmonicEnabled: enabledPartials, showFormants });
   if (painted > 0 && latestFrame && now - lastPanelRender >= panelRefreshMs) {
     renderPanel(latestFrame);
@@ -306,7 +334,7 @@ function tick(now = performance.now()): void {
   if (now - lastDiagnostics >= 1000) {
     framesPerSecondEl.textContent = `${framesThisSecond}`;
     latencyEl.textContent = peakLatencyMs > 0 ? `${Math.round(peakLatencyMs)} ms (+~25 ms window)` : "--";
-    if (latestFrame) levelEl.textContent = formatLevel(latestFrame.levelDb, calibration, captureSettings.deviceId ?? "");
+    if (latestFrame) { levelEl.textContent = formatLevel(latestFrame.levelDb, calibration, captureSettings.deviceId ?? ""); levelTextEl.textContent = levelEl.textContent; }
     renderCalibration();
     exportStateEl.textContent = sessionLog.length > 0 ? `${(sessionLog.length / 100).toFixed(0)} s recorded` : "Nothing recorded yet";
     framesThisSecond = 0; peakLatencyMs = 0; lastDiagnostics = now;
@@ -343,13 +371,20 @@ function renderPanel(live: AnalysisFrame | null): void {
     ? `F0 ${formatHz(frame.f0Hz)} Hz · HNR ${frame.hnrDb === null ? "--" : `${frame.hnrDb.toFixed(1)} dB`}`
     : praatAvailable === false ? "Pitch unavailable (Praat WASM failed to load)" : "No pitch";
   formantStateEl.replaceChildren();
-  formantStateEl.append("Formants: ");
-  if (!frame || frame.formants.length === 0) formantStateEl.append("--");
-  else frame.formants.slice(0, shownFormants).forEach((formant, index) => {
-    const span = document.createElement("span");
-    span.style.color = formantColors[index];
-    span.textContent = `F${index + 1} ${Math.round(formant.frequencyHz)} Hz`;
-    formantStateEl.append(span, index < Math.min(shownFormants, frame.formants.length) - 1 ? "  ·  " : "");
+  const label = document.createElement("span");
+  label.className = "sr-only";
+  label.textContent = "Formants: ";
+  formantStateEl.append(label);
+  const shown = stableFormants(frame, held);
+  if (shown.length === 0) formantStateEl.append("--");
+  else shown.forEach((hz, index) => {
+    const cell = document.createElement("span");
+    cell.className = "formant-cell";
+    cell.style.color = formantColors[index];
+    const name = document.createElement("small");
+    name.textContent = `F${index + 1}`;
+    cell.append(name, ` ${hz} Hz`);
+    formantStateEl.append(cell);
   });
   harmonicRowsEl.replaceChildren();
   for (let index = 0; index < partialCount; index += 1) {
@@ -361,17 +396,40 @@ function renderPanel(live: AnalysisFrame | null): void {
   }
 }
 
+/** Text readout: median of the last ~150 ms of frames, rounded to 5 Hz, so digits stop flickering but follow fast vowels. */
+const readoutFrames = 15;
+let emptyRun = 0;
+function recordReadout(frame: AnalysisFrame): void {
+  if (frame.formants.length === 0) { if (++emptyRun >= 5) readoutHistory.length = 0; return; }
+  emptyRun = 0;
+  readoutHistory.push(frame.formants.slice(0, shownFormants).map((f) => f.frequencyHz));
+  if (readoutHistory.length > readoutFrames) readoutHistory.shift();
+}
+
+function stableFormants(frame: AnalysisFrame | null, held: boolean): number[] {
+  if (held) return lastShown;
+  if (!frame || frame.formants.length === 0 || readoutHistory.length === 0) return (lastShown = []);
+  const out: number[] = [];
+  for (let k = 0; k < shownFormants; k += 1) {
+    const values = readoutHistory.map((h) => h[k]).filter((v): v is number => v !== undefined).sort((x, y) => x - y);
+    if (values.length === 0) break;
+    out.push(Math.round(values[values.length >> 1] / 5) * 5);
+  }
+  return (lastShown = out);
+}
+
 function formatHz(value: number): string { return value.toFixed(value < 100 ? 1 : 0); }
 
 async function updatePermissionStatus(): Promise<void> {
   const generation = ++permissionGeneration;
-  if (!navigator.permissions?.query) { permissionEl.textContent = "prompt"; return; }
+  if (!navigator.permissions?.query) { permissionEl.textContent = mediaStream ? "granted (in use)" : "prompt"; return; }
   try {
     const permission = await navigator.permissions.query({ name: "microphone" as PermissionName });
     if (generation !== permissionGeneration) return;
-    permissionEl.textContent = permission.state;
-    permission.onchange = () => { if (generation === permissionGeneration) permissionEl.textContent = permission.state; };
-  } catch { permissionEl.textContent = "prompt"; }
+    const label = () => (mediaStream && permission.state !== "denied" ? "granted (in use)" : permission.state);
+    permissionEl.textContent = label();
+    permission.onchange = () => { if (generation === permissionGeneration) permissionEl.textContent = label(); };
+  } catch { permissionEl.textContent = mediaStream ? "granted (in use)" : "prompt"; }
 }
 
 async function refreshAudioInputs(): Promise<void> {

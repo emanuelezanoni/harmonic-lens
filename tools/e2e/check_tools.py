@@ -15,17 +15,19 @@ with sync_playwright() as p:
     page.on("pageerror", lambda e: errs.append(str(e)))
     page.goto(f"http://127.0.0.1:{srv.server_address[1]}/index.html")
     ok = {}
+    open_panels = lambda: page.evaluate("document.querySelectorAll('details').forEach(d => d.open = true)")
+    open_panels()
     ok["export disabled before any audio"] = page.is_disabled("#exportButton")
     page.click("#startButton"); page.wait_for_function("document.querySelector('#status').textContent.startsWith('Listening')", timeout=15000)
     time.sleep(6)
-    before = page.inner_text("#level"); print("level before:", before)
+    before = page.text_content("#level"); print("level before:", before)
     page.fill("#splReading", "72"); page.click("#calibrateButton"); time.sleep(1.5)
-    after = page.inner_text("#level"); print("level after calibrate:", after, "|", page.inner_text("#calibrationState"))
+    after = page.text_content("#level"); print("level after calibrate:", after, "|", page.text_content("#calibrationState"))
     ok["level shows dBFS first"] = "dBFS" in before
     ok["level shows SPL after calibration"] = "dB SPL" in after
-    page.reload()
+    page.reload(); open_panels()
     page.click("#startButton"); page.wait_for_function("document.querySelector('#status').textContent.startsWith('Listening')", timeout=15000); time.sleep(2.5)
-    ok["calibration persists per device across reload"] = "dB SPL" in page.inner_text("#level")
+    ok["calibration persists per device across reload"] = "dB SPL" in page.text_content("#level")
     with page.expect_download() as d: page.click("#exportButton")
     path = d.value.path(); rows = list(csv.DictReader(open(path)))
     print("csv:", d.value.suggested_filename, len(rows), "rows;", list(rows[0].keys()))
@@ -34,7 +36,7 @@ with sync_playwright() as p:
     ok["csv has voiced frames with formants"] = len(voiced) > 30 and sum(1 for r in voiced if r["f1_hz"] and r["f2_hz"]) > 20
     ok["csv has SPL column when calibrated"] = "level_db_spl" in rows[0]
     page.click("#calibrationReset"); time.sleep(1.2)
-    ok["reset returns to dBFS"] = "dBFS" in page.inner_text("#level")
+    ok["reset returns to dBFS"] = "dBFS" in page.text_content("#level")
     ok["no page errors"] = not errs
     print(ok); print("PASS calibration + export" if all(ok.values()) else "FAIL calibration + export", errs[:3])
     sys.exit(0 if all(ok.values()) else 1)
