@@ -47,6 +47,8 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq xvfb python3-pip
           python3 -m pip install --break-system-packages playwright numpy scipy
+          # Electron 44 no longer downloads its binary on npm install; fetch it for the smoke test.
+          node node_modules/electron/install.js
           python3 tools/e2e/synth_vowels.py /tmp/vowels
           HL_REAL_PERMISSIONS=1 xvfb-run -a python3 tools/e2e/run_electron.py /tmp/vowels.wav /tmp/electron 10
       - uses: actions/upload-artifact@v4

@@ -12,6 +12,8 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 def main(wav, out, seconds=12.0, app=None):
     electron = os.path.join(ROOT, "node_modules", "electron", "dist", "electron")
+    if not os.path.exists(electron):  # Electron >= 44 downloads its binary lazily, not on npm install
+        subprocess.run(["node", os.path.join(ROOT, "node_modules", "electron", "install.js")], check=True)
     # HL_REAL_PERMISSIONS=1 drops the fake-UI flag so the app's own permission handlers decide (production path).
     fake_ui = [] if os.environ.get("HL_REAL_PERMISSIONS") else ["--use-fake-ui-for-media-stream"]
     cmd = [electron, "--no-sandbox", "--remote-debugging-port=9333", "--use-fake-device-for-media-stream", *fake_ui,
