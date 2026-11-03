@@ -1,35 +1,71 @@
+<p align="center"><img src="build/icons/256x256.png" width="128" alt="Harmonic Lens icon"></p>
+
 # Harmonic Lens
 
-GPL-2.0-or-later **real-time** vocal analyzer: the Praat-style view of your voice
-(spectrogram, F0, formants F1-F4, HNR, harmonics) while you sing or speak, instead
-of record-then-inspect.
+GPL-2.0-or-later **real-time** vocal analyzer: the Praat-style view of your voice (spectrogram, F0, formants
+F1-F4, HNR, harmonics) while you sing or speak, instead of record-then-inspect. Built for vowel and voice
+training: you see where your vowels land on an F1 x F2 chart as you say them.
+
+![Harmonic Lens listening to a voice](docs/screenshot.png)
+
+## Status: first beta (0.1.0-beta.1)
+
+The formant estimator is scored against 1668 hand-checked human vowels (Hillenbrand et al. 1995) and compared
+with Praat on running Italian and English speech and on sung vowels. The desktop packages build in CI and the
+Linux one is smoke-tested with a fake microphone. **The macOS and Windows builds have not yet been run on real hardware**, and no real
+microphone has been used in CI: that is what this beta is for. Please report what breaks.
+
+## Download
+
+Get the file for your system from the [latest release](../../releases/latest). The apps are not signed or
+notarized, so each system asks for one approval on first launch:
+
+| System | File | First launch |
+|---|---|---|
+| macOS 13+ (Apple Silicon and Intel) | `harmonic-lens-<version>-mac-universal.zip` | Unzip, move to Applications, then right-click the app and choose **Open**. Or run `xattr -dr com.apple.quarantine "/Applications/Harmonic Lens.app"`. Allow the microphone when asked. |
+| Windows 10/11 | `harmonic-lens-<version>-win-x64.exe` (portable) | Run it. If SmartScreen warns, choose **More info**, then **Run anyway**. |
+| Linux x86_64 | `harmonic-lens-<version>-linux-x86_64.AppImage` | `chmod +x` the file and run it. On Ubuntu 24.04+ you may need `--no-sandbox` (AppArmor user-namespace restriction). |
+
+If the microphone stays silent on macOS, check **System Settings, Privacy & Security, Microphone** and the
+**Diagnostics** panel in the app.
+
+## Using it
+
+1. Press **Start microphone** and sing or say a sustained vowel.
+2. Pick **Voice** (low, medium, high/child). It sets the highest formant searched and the pitch range, and it
+   matters: a wrong choice makes formants jump. For an adult male voice use *Low*.
+3. Watch the **spectrogram** (F0 white, F1 red, F2 green, F3 blue) and the **vowel space**: your last second
+   leaves a trail, and the nearest indicative Italian vowel target turns green.
+4. **Calibration and export** (collapsed panel): enter the reading of a sound level meter while a steady sound
+   plays to show dB SPL for that microphone, and export the session (time, level, F0, HNR, F1-F4) as CSV.
+5. Settings and the calibration are remembered between runs.
 
 ## What it does
 
-- Microphone via `getUserMedia` and an `AudioWorklet` (all channels averaged to mono,
-  input never played back). The worklet sends audio straight to an analysis Worker;
-  the main thread only paints.
+- Microphone via `getUserMedia` and an `AudioWorklet` (all channels averaged to mono, input never played back).
+  The worklet sends audio straight to an analysis Worker; the main thread only paints. The microphone can be
+  switched while listening.
 - One analysis pipeline (`src/dsp/engine.ts`), ~10 ms hop, ~2 ms CPU per frame:
-  - F0 and HNR from the pinned Praat v7.0.02 WASM (raw autocorrelation pitch, cross-correlation
-    HNR). HNR runs on an 8 kHz decimated copy every 4th hop (the Praat call costs 35-100 ms at
-    48 kHz); deliberate divergence, about 0.5 dB on voiced signals.
-  - Formants: TypeScript port of Praat's Burg algorithm (`src/dsp/formants/`), validated against
-    Praat 6.1.38 via parselmouth (median F1-F3 error under 0.15% on clean synthetic vowels).
-  - Praat-style Gaussian spectrogram (wideband 5 ms for formants, narrowband 30 ms for harmonics),
-    pre-emphasis from 50 Hz, selectable 0-3/5/8 kHz range.
-  - Eight n x F0 harmonic guides with measured peaks; a pitch tracker bridges dropouts and rejects
-    isolated octave jumps.
-- UI: labelled Hz and time axes, F0 and F1-F4 tracks over the spectrogram, voice presets (max
-  formant 5000/5500/7000 Hz), pause/resume.
-- If the Praat WASM fails to load the UI says so (pitch/HNR off); there is no hidden fallback
-  estimator. Spectrogram and formants keep running.
-- Electron has `contextIsolation`, sandbox, no Node integration, temporary profile, audio-only
-  permission for the trusted main page. No recordings or settings are persisted.
+  - F0 and HNR from the pinned Praat v7.0.02 WASM (raw autocorrelation pitch, cross-correlation HNR). HNR runs
+    on an 8 kHz decimated copy every 4th hop (the Praat call costs 35-100 ms at 48 kHz); deliberate divergence,
+    about 0.5 dB on voiced signals.
+  - Formants: TypeScript port of Praat's Burg algorithm (`src/dsp/formants/`), validated against Praat 6.1.38
+    via parselmouth (median F1-F3 error under 0.15% on clean synthetic vowels).
+  - Formants F1-F4 are tracked over time (`src/dsp/formants/tracker.ts`): poles are assigned to slots by dynamic
+    programming with temporal continuity, a 3-frame median, and no history across unvoiced frames. Formants are
+    reported only while a pitch track exists, after 3 voiced frames.
+  - Praat-style Gaussian spectrogram (wideband 5 ms for formants, narrowband 30 ms for harmonics), pre-emphasis
+    from 50 Hz, selectable 0-3/5/8 kHz range.
+  - Eight n x F0 harmonic guides with measured peaks; a pitch tracker bridges dropouts and rejects isolated
+    octave jumps.
+- UI: single-screen layout, labelled Hz and time axes, F0 and F1-F3 lines over the spectrogram, F1 x F2 vowel
+  space, input level meter, pause/resume, collapsible harmonics, calibration/export and diagnostics panels.
+- If the Praat WASM fails to load the UI says so (pitch/HNR off); there is no hidden fallback estimator.
+- Electron has `contextIsolation`, sandbox, no Node integration and an audio-only permission for the trusted main
+  page. Only a few preferences are stored (voice type, range, calibration); audio is never written to disk.
 
-Formants F1-F4 are tracked over time (`src/dsp/formants/tracker.ts`): poles are assigned to slots by
-dynamic programming with temporal continuity, a 3-frame median, and no history across unvoiced frames.
-
-Not implemented: recording/export, calibration, saved settings, and a manually tested desktop release.
+**Not implemented yet:** audio recording and playback (the CSV export has measurements only), personal vowel
+targets (the chart uses indicative adult Italian values scaled by voice type), signed and notarized builds.
 
 ## End-to-end check
 
@@ -57,7 +93,8 @@ measurements. Fraction of frames with >20 % error (`--raw` = unfiltered poles, n
 | white noise, SNR 30 dB (`--snr 30`) | 2.56 % | 2.13 % |
 | white noise, SNR 20 dB | 6.47 % | 6.53 % |
 
-Real-microphone behaviour remains host-dependent and untested here.
+Real-microphone behaviour is host-dependent. `tools/bench/own-voice.ts` and `tools/bench/speech-vs-praat.ts` compare the
+engine with Praat on your own recordings and on running speech.
 
 ## Deterministic verification
 
@@ -70,7 +107,7 @@ npm test
 npm run praat:fixtures:check
 npm run praat:wasm:stage:check
 npm run build
-npm run package:linux
+npm run package:linux   # also package:mac:universal, package:win
 ```
 
 `npm run build` runs staged-WASM hash check first. `npm run
