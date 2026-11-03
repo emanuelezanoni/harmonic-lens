@@ -71,3 +71,9 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*
+          # A tag with a hyphen (v0.1.0-beta.1) is published as a pre-release.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body: |
+            Beta build. The apps are not signed or notarized: on macOS right-click the app and choose Open
+            (or `xattr -dr com.apple.quarantine "/Applications/Harmonic Lens.app"`); on Windows choose More info,
+            then Run anyway; on Linux `chmod +x` the AppImage. See the README for details.

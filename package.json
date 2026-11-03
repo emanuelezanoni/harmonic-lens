@@ -1,6 +1,6 @@
 {
   "name": "harmonic-lens",
-  "version": "0.1.6",
+  "version": "0.1.0-beta.1",
   "description": "Live vocal harmonic visualizer.",
   "private": true,
   "license": "GPL-2.0-or-later",
