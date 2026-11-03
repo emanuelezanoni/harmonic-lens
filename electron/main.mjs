@@ -13,10 +13,9 @@ const trustedFileUrl = pathToFileURL(join(appDirectory, "..", "dist", "index.htm
 let mainWindow;
 let cleanupStarted = false;
 
-// All Chromium profile state is transient. No preferences, recordings, or caches persist.
-app.setPath("userData", join(runtimeDirectory, "user-data"));
+// Only the cache is transient. The default profile directory stays, because it is where the app's few preferences
+// (voice type, range, microphone calibration) live in localStorage; no audio or recordings are ever written.
 app.setPath("cache", join(runtimeDirectory, "cache"));
-app.setPath("sessionData", join(runtimeDirectory, "session"));
 
 function createWindow() {
   mainWindow = new BrowserWindow({
