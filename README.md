@@ -31,6 +31,8 @@ If the microphone stays silent on macOS, check **System Settings, Privacy & Secu
 
 ## Using it
 
+Every control has a small **?** button that explains it, and **? How to use** at the top gives a quick start.
+
 1. Press **Start microphone** and sing or say a sustained vowel.
 2. Pick **Voice** (low, medium, high/child). It sets the highest formant searched and the pitch range, and it
    matters: a wrong choice makes formants jump. For an adult male voice use *Low*.

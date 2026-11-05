@@ -2,8 +2,8 @@
 
 ## Product boundary
 
-A real-time browser visualizer for singing voice: microphone input,
-spectrogram, F0, harmonic guides, and later formants. It is not a browser clone
+A real-time visualizer for singing and speaking voice: microphone input,
+spectrogram, F0, harmonic guides and formants, as a web page and as a desktop app. It is not a browser clone
 of the full Praat desktop application.
 
 ## Licensing rule
@@ -60,7 +60,7 @@ latency (target: under 100 ms for visual feedback).
 
 ## Milestone 4 — formants and usable sessions
 
-**Status (core-realtime branch):** formants F1-F4 (TypeScript Burg port validated against Praat), Hz/time axes, voice presets and pause are implemented. Calibration, recording/export, settings persistence and formant continuity tracking remain.
+**Status (0.1.0-beta.1):** done: formants F1-F4 (TypeScript Burg port validated against Praat) with a temporal tracker, F1 x F2 vowel space, level meter and dB SPL calibration, CSV export, saved settings, pause, live microphone switching, packaged desktop apps. Not done: audio recording and playback, personal vowel targets, signed and notarized builds.
 
 - Evaluate the LPC/Burg path from `fon/Sound_to_Formant.cpp`.
 - Add F1/F2 only if pitch/spectrogram are stable.

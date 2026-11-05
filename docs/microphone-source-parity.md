@@ -24,9 +24,9 @@ Packaging evidence: electron-builder [issue #9529](https://github.com/electron-u
 
 ## Adopted / rejected summary
 
-Adopted: Electron dual permission gates, explicit TCC request, plist purpose text; Jitsi exact device constraints, post-grant enumeration, device-change refresh, complete stream disposal; explicit truly-unsigned mac identity for current test artifacts. Local fallback improves on references and stays narrowly error-gated.
+Adopted: Electron dual permission gates, explicit TCC request, plist purpose text; Jitsi exact device constraints, post-grant enumeration, device-change refresh, complete stream disposal; ad-hoc signed mac bundle with hardened runtime off. Local fallback improves on references and stays narrowly error-gated.
 
-Rejected: Jitsi allow-by-default permission policy (too broad), universal-only distribution (larger than required), custom signing entitlements for current unsigned non-sandboxed build, device polling (no Chromium gap), gUM timeout (TCC prompt has no safe universal deadline), MDN's generic constraints and incomplete cleanup.
+Rejected: Jitsi allow-by-default permission policy (too broad), custom signing entitlements (not needed with hardened runtime off), device polling (no Chromium gap), gUM timeout (TCC prompt has no safe universal deadline), MDN's generic constraints and incomplete cleanup.
 
 ## Physical boundary
 

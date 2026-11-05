@@ -1,6 +1,6 @@
 # macOS Apple Silicon verification
 
-Repository configuration supports a native arm64 ZIP. Linux can validate source,
+CI builds one universal (arm64 + x64) ZIP, and an arm64-only ZIP remains available locally. Linux can validate source,
 tests, renderer build, electron-builder configuration, and cross-package an
 unsigned arm64 app directory for static Mach-O/plist/ASAR inspection. Linux cannot
 execute that app, exercise CoreAudio/TCC, sign, notarize, or prove microphone
