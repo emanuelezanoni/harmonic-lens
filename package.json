@@ -1,7 +1,7 @@
 {
   "name": "harmonic-lens",
-  "version": "0.1.0-beta.1",
-  "description": "Live vocal harmonic visualizer.",
+  "version": "0.1.0-beta.2",
+  "description": "Real-time vocal analyzer: spectrogram, pitch, formants and harmonics of your voice, live.",
   "private": true,
   "license": "GPL-2.0-or-later",
   "type": "module",
@@ -80,6 +80,27 @@
       ],
       "category": "AudioVideo",
       "syncDesktopName": true
-    }
-  }
+    },
+    "copyright": "Copyright © 2026 Harmonic Lens contributors. GPL-2.0-or-later."
+  },
+  "homepage": "https://github.com/emanuelezanoni/harmonic-lens#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emanuelezanoni/harmonic-lens.git"
+  },
+  "bugs": {
+    "url": "https://github.com/emanuelezanoni/harmonic-lens/issues"
+  },
+  "author": "Harmonic Lens contributors",
+  "keywords": [
+    "voice",
+    "formants",
+    "praat",
+    "spectrogram",
+    "pitch",
+    "vowel",
+    "speech",
+    "singing",
+    "electron"
+  ]
 }
