@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, systemPreferences } from "electron";
+import { app, BrowserWindow, Menu, session, systemPreferences } from "electron";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -23,11 +23,22 @@ function createWindow() {
     height: 760,
     minWidth: 760,
     minHeight: 580,
+    title: "Harmonic Lens",
+    backgroundColor: "#0b0e13", // matches the page, so there is no white flash before it paints
+    show: false,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true
     }
+  });
+
+  mainWindow.once("ready-to-show", () => mainWindow.show());
+  // The app is a single local page: it never opens windows, and it never navigates away from itself.
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    const strip = (u) => { try { const x = new URL(u); x.hash = ""; x.search = ""; return x.href; } catch { return u; } };
+    if (strip(url) !== strip(mainWindow.webContents.getURL())) event.preventDefault();
   });
 
   if (devServerUrl) {
@@ -38,6 +49,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // No stock File/Edit/View menu on Windows and Linux; macOS keeps a minimal one (Quit, copy and paste, window).
+  Menu.setApplicationMenu(process.platform === "darwin" ? Menu.buildFromTemplate([{ role: "appMenu" }, { role: "editMenu" }, { role: "windowMenu" }]) : null);
   session.defaultSession.setPermissionCheckHandler((webContents, permission, _requestingOrigin, details) => {
     return allowsMicrophoneCheck({
       permission,
