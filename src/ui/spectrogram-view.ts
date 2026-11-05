@@ -194,7 +194,7 @@ export class SpectrogramView {
     const step = this.maxHz <= 3000 ? 500 : 1000;
     for (let hz = 0; hz <= this.maxHz; hz += step) {
       const tick = document.createElement("span");
-      tick.textContent = hz === 0 ? "0" : hz >= 1000 ? `${hz / 1000} kHz` : `${hz} Hz`;
+      tick.textContent = hz === 0 ? "0 kHz" : hz >= 1000 ? `${hz / 1000} kHz` : `${hz} Hz`;
       tick.style.bottom = `${(hz / this.maxHz) * 100}%`;
       this.freqAxis.append(tick);
     }

@@ -14,11 +14,14 @@
           <div class="brand">
             <img src="./favicon.png" alt="" width="40" height="40" />
             <h1 id="app-title">Harmonic Lens</h1>
+            <button type="button" class="help help-wide" data-help="quickstart" aria-label="How to use Harmonic Lens" title="How to use">? How to use</button>
           </div>
           <p id="status" role="status" aria-live="polite" data-state="idle">Idle. Audio stays muted locally.</p>
           <div class="level" aria-label="Input level">
+            <span class="level-label">Level</span>
             <div id="levelTrack" class="level-track" role="meter" aria-valuemin="-80" aria-valuemax="0" aria-valuenow="-80" aria-label="Input level in dB"><i id="levelBar"></i></div>
             <span id="levelText" class="level-text">--</span>
+            <button type="button" class="help" data-help="level" title="What is this?">?</button>
           </div>
           <div class="transport">
             <button id="startButton" type="button" class="primary">Start microphone</button>
@@ -28,47 +31,48 @@
         </header>
 
         <section class="controls" aria-label="Analysis settings">
-          <label class="field" for="audioInput">
-            <span>Microphone</span>
+          <div class="field">
+            <div class="field-head"><label for="audioInput">Microphone</label><button type="button" class="help" data-help="microphone" title="What is this?">?</button></div>
             <select id="audioInput" aria-describedby="audioInputHint">
               <option value="">Default microphone</option>
             </select>
             <span id="audioInputHint" class="sr-only">Choose microphone; switches immediately while listening</span>
-          </label>
-          <label class="field" for="voiceType" title="Sets the highest formant searched and the pitch range. Pick the closest to your voice.">
-            <span>Voice</span>
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="voiceType">Voice</label><button type="button" class="help" data-help="voice" title="What is this?">?</button></div>
             <select id="voiceType">
               <option value="5000">Low voice · up to 5000 Hz</option>
               <option value="5500" selected>Medium voice · up to 5500 Hz</option>
               <option value="7000">High / child · up to 7000 Hz</option>
             </select>
-          </label>
-          <label class="field" for="rangeSelect">
-            <span>Frequency range</span>
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="rangeSelect">Frequency range</label><button type="button" class="help" data-help="range" title="What is this?">?</button></div>
             <select id="rangeSelect">
               <option value="3000">0–3 kHz</option>
               <option value="5000" selected>0–5 kHz</option>
               <option value="8000">0–8 kHz</option>
             </select>
-          </label>
-          <label class="field" for="modeSelect">
-            <span>Spectrogram</span>
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="modeSelect">Spectrogram</label><button type="button" class="help" data-help="mode" title="What is this?">?</button></div>
             <select id="modeSelect">
               <option value="0.005" selected>Wideband (shows formants)</option>
               <option value="0.03">Narrowband (shows harmonics)</option>
             </select>
-          </label>
+          </div>
         </section>
 
         <div class="stage">
           <section class="visualizer" aria-labelledby="visualizer-title">
             <div class="visualizer-heading">
-              <h2 id="visualizer-title">Live spectrogram</h2>
+              <div class="card-head heading-main"><h2 id="visualizer-title">Live spectrogram</h2><button type="button" class="help" data-help="spectrogram" title="What is this?">?</button></div>
               <span class="legend"><i class="swatch" style="background:#fff"></i>F0</span>
               <span class="legend"><i class="swatch" style="background:#ff6b6b"></i>F1</span>
               <span class="legend"><i class="swatch" style="background:#5cff8a"></i>F2</span>
               <span class="legend"><i class="swatch" style="background:#6fd3ff"></i>F3</span>
               <button id="formantToggle" type="button" class="chip" aria-pressed="true" title="Show or hide the formant lines on the spectrogram">Formant lines</button>
+              <button type="button" class="help" data-help="formantLines" title="What is this?">?</button>
             </div>
             <div class="plot">
               <div id="freqAxis" class="freq-axis" aria-hidden="true"></div>
@@ -77,17 +81,17 @@
               <canvas id="pitchCanvas" width="1000" height="90" aria-label="Pitch contour (F0), logarithmic scale"></canvas>
               <div id="timeAxis" class="time-axis" aria-hidden="true"></div>
             </div>
-            <p class="axis-caption">Top: spectrogram (Hz). Bottom: pitch F0 (Hz, log scale). Time runs right to left.</p>
+            <p class="axis-caption">Top: spectrogram (Hz). Bottom: pitch F0 (Hz, log scale). Newest sound on the right, older to the left.</p>
           </section>
 
           <aside class="side" aria-label="Current measurements">
             <section class="card now" aria-labelledby="now-title">
-              <h2 id="now-title">Now</h2>
+              <div class="card-head"><h2 id="now-title">Now</h2><button type="button" class="help" data-help="now" title="What is this?">?</button></div>
               <p id="pitchState" role="status">No pitch</p>
               <p id="formantState" class="formant-state" role="status">Formants: --</p>
             </section>
             <section class="card" aria-labelledby="vowel-title">
-              <h2 id="vowel-title">Vowel space</h2>
+              <div class="card-head"><h2 id="vowel-title">Vowel space</h2><button type="button" class="help" data-help="vowelSpace" title="What is this?">?</button></div>
               <canvas id="vowelSpace" class="vowel-canvas" width="360" height="330" aria-label="F1 by F2 vowel chart with the last second of your voice"></canvas>
               <p class="note">F2 left to right (high to low), F1 top to bottom (low to high). Circles are indicative adult Italian targets scaled to the selected voice; the one you are nearest to turns green.</p>
             </section>
@@ -97,7 +101,7 @@
         <details class="panel">
           <summary>Harmonic guides</summary>
           <div class="panel-body">
-            <p class="panel-hint">Switch H1-H8 on to draw a line at n × F0 on the scrolling spectrogram; the lines follow your pitch and only appear while a pitch is found. They are the harmonics of your voice and have nothing to do with the formant lines (F1-F3), which have their own switch above the spectrogram. The table lists the measured peak next to each guide.</p>
+            <p class="panel-hint">Switch H1-H8 on to draw a line at n × F0 on the scrolling spectrogram. These are the harmonics of your voice, not the formant lines (F1-F3), which have their own switch above the spectrogram. <button type="button" class="help" data-help="harmonics" title="What is this?">?</button></p>
             <div class="harmonics-heading">
               <div id="harmonicToggles" class="harmonic-toggles" aria-label="Harmonic guide visibility"></div>
             </div>
@@ -117,6 +121,7 @@
           <summary>Level calibration and session export</summary>
           <div class="panel-body tools" aria-label="Level calibration and session export">
             <div class="tool-group">
+              <button type="button" class="help" data-help="calibration" title="What is this?">?</button>
               <label for="splReading">Sound meter reads</label>
               <input id="splReading" type="number" min="20" max="140" step="1" value="70" inputmode="numeric" /> <span>dB SPL</span>
               <button id="calibrateButton" type="button" disabled>Calibrate</button>
@@ -124,6 +129,7 @@
               <span id="calibrationState" role="status">Uncalibrated: showing dBFS (0 = digital full scale)</span>
             </div>
             <div class="tool-group">
+              <button type="button" class="help" data-help="export" title="What is this?">?</button>
               <button id="exportButton" type="button" disabled>Export session (CSV)</button>
               <span id="exportState" role="status">Nothing recorded yet</span>
             </div>
@@ -133,6 +139,7 @@
         <details class="panel">
           <summary>Diagnostics</summary>
           <div class="panel-body meter-row" aria-label="Live diagnostics">
+            <p class="panel-hint">Technical details, useful if something does not work. <button type="button" class="help" data-help="diagnostics" title="What is this?">?</button></p>
             <dl>
               <div><dt>Permission</dt><dd id="permission">unknown</dd></div>
               <div><dt>Frame sample rate</dt><dd id="sampleRate">--</dd></div>
@@ -148,6 +155,11 @@
         </details>
       </div>
     </main>
+    <div id="helpPopover" class="help-popover" popover="auto" role="dialog" aria-modal="false" tabindex="-1">
+      <h3 id="helpTitle" class="help-title"></h3>
+      <div class="help-body"></div>
+      <p class="help-foot">Press Esc or click outside to close.</p>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

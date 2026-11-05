@@ -6,6 +6,7 @@ import { formatLevel, loadCalibration, offsetFromReading, saveCalibration, type 
 import { loadSettings, saveSettings } from "./saved-settings";
 import { SessionLog } from "./session-export";
 import { SpectrogramView, formantColors, shownFormants } from "./ui/spectrogram-view";
+import { installHelp } from "./ui/help-popover";
 import { VowelSpace } from "./ui/vowel-space";
 
 const partialCount = 8;
@@ -47,6 +48,8 @@ const levelTrackEl = requiredElement<HTMLElement>("#levelTrack");
 const levelTextEl = requiredElement<HTMLElement>("#levelText");
 const vowelSpace = new VowelSpace(requiredElement<HTMLCanvasElement>("#vowelSpace"));
 const view = new SpectrogramView(requiredElement<HTMLCanvasElement>("#spectrogram"), requiredElement<HTMLElement>("#freqAxis"), requiredElement<HTMLElement>("#timeAxis"), requiredElement<HTMLCanvasElement>("#pitchCanvas"), requiredElement<HTMLElement>("#pitchAxis"));
+
+installHelp(requiredElement<HTMLElement>("#helpPopover"));
 
 let audioContext: AudioContext | null = null;
 let mediaStream: MediaStream | null = null;

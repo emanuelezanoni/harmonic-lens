@@ -77,6 +77,7 @@ h1 { font-size: 1.55rem; font-weight: 750; line-height: 1; }
 /* Settings row */
 .controls { display: flex; flex-wrap: wrap; gap: 12px 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .field { display: grid; gap: 4px; min-width: 0; flex: 1 1 200px; color: var(--muted); font-size: 0.78rem; font-weight: 650; }
+.field-head { display: flex; align-items: center; gap: 6px; }
 .field select { width: 100%; font-size: 0.95rem; font-weight: 400; }
 
 /* Stage: spectrogram + measurements */
@@ -84,7 +85,7 @@ h1 { font-size: 1.55rem; font-weight: 750; line-height: 1; }
 .visualizer, .card { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .visualizer { min-width: 0; padding: 14px; }
 .visualizer-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 10px; }
-.visualizer-heading h2 { margin-right: auto; }
+.visualizer-heading .heading-main { margin-right: auto; }
 .legend { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.8rem; font-weight: 650; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
 
@@ -153,3 +154,20 @@ tbody tr:hover { background: rgb(255 255 255 / 3%); }
   .plot { grid-template-columns: 44px minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Help */
+button.help { flex: none; width: 22px; min-height: 22px; height: 22px; padding: 0; border-radius: 50%; border-color: #3b4859; background: transparent; color: var(--muted); font-size: 0.75rem; font-weight: 700; line-height: 1; }
+button.help:not(:disabled):hover { color: var(--text); border-color: var(--accent); background: #12303f; }
+button.help[aria-expanded="true"] { color: #06141c; border-color: var(--accent); background: var(--accent); }
+button.help-wide { width: auto; padding: 0 10px; border-radius: 999px; font-size: 0.8rem; }
+.brand { flex-wrap: wrap; }
+.visualizer-heading h2, .card h2 { display: inline-flex; align-items: center; gap: 8px; }
+.card-head { display: flex; align-items: center; gap: 8px; }
+.level-label { color: var(--muted); font-size: 0.8rem; font-weight: 650; }
+.help-popover { position: fixed; inset: auto; margin: 0; width: min(380px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; padding: 14px 16px 12px; border: 1px solid #3b4859; border-radius: 12px; background: #151c27; color: var(--text); box-shadow: 0 18px 48px rgb(0 0 0 / 55%); font-size: 0.88rem; line-height: 1.5; }
+.help-popover:focus { outline: none; }
+.help-title { margin: 0 0 8px; font-size: 1rem; }
+.help-body p { margin: 0 0 8px; color: #d3dce8; }
+.help-body ol { margin: 4px 0 4px 1.2em; padding: 0; color: #d3dce8; }
+.help-body li { margin-bottom: 5px; }
+.help-foot { margin: 8px 0 0; color: var(--muted); font-size: 0.75rem; }
