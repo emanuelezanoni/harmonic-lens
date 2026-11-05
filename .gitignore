@@ -1,5 +1,5 @@
 # JavaScript / TypeScript
-node_modules/
+node_modules
 dist/
 release/
 coverage/
