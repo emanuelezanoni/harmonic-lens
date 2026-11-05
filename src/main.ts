@@ -359,6 +359,18 @@ function createHarmonicControls(): void {
     });
     harmonicTogglesEl.append(button);
   }
+  for (const [label, value] of [["All", true], ["None", false]] as const) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chip";
+    button.textContent = label;
+    button.addEventListener("click", () => {
+      enabledPartials.fill(value);
+      harmonicTogglesEl.querySelectorAll<HTMLElement>(".harmonic-toggle").forEach((el) => el.setAttribute("aria-pressed", String(value)));
+      renderPanel(latestFrame);
+    });
+    harmonicTogglesEl.append(button);
+  }
 }
 
 function renderPanel(live: AnalysisFrame | null): void {
@@ -376,16 +388,18 @@ function renderPanel(live: AnalysisFrame | null): void {
   label.textContent = "Formants: ";
   formantStateEl.append(label);
   const shown = stableFormants(frame, held);
-  if (shown.length === 0) formantStateEl.append("--");
-  else shown.forEach((hz, index) => {
+  // Always three cells, so the card keeps its size whether or not formants are found.
+  for (let index = 0; index < shownFormants; index += 1) {
     const cell = document.createElement("span");
     cell.className = "formant-cell";
-    cell.style.color = formantColors[index];
+    const known = shown[index] !== undefined;
+    cell.style.color = known ? formantColors[index] : "";
+    cell.classList.toggle("empty", !known);
     const name = document.createElement("small");
     name.textContent = `F${index + 1}`;
-    cell.append(name, ` ${hz} Hz`);
+    cell.append(name, known ? ` ${shown[index]} Hz` : " —");
     formantStateEl.append(cell);
-  });
+  }
   harmonicRowsEl.replaceChildren();
   for (let index = 0; index < partialCount; index += 1) {
     const enabled = enabledPartials[index], theory = frame?.theoreticalHz[index] ?? null, peak = frame?.peaks[index] ?? null;

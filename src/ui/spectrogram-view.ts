@@ -164,7 +164,7 @@ export class SpectrogramView {
         }
       }
     };
-    frame.theoreticalHz.forEach((hz, index) => { if (overlay.harmonicEnabled[index]) mark(hz, overlay.harmonicColors[index], 1, 0.6); });
+    frame.theoreticalHz.forEach((hz, index) => { if (overlay.harmonicEnabled[index]) mark(hz, overlay.harmonicColors[index], 2, 0.95); });
     mark(frame.f0Hz, "#ffffff", 2);
     if (overlay.showFormants) {
       formantColors.forEach((color, index) => {

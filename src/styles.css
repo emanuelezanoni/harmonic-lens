@@ -101,10 +101,11 @@ h1 { font-size: 1.55rem; font-weight: 750; line-height: 1; }
 
 .side { display: grid; gap: 14px; }
 .card { padding: 14px; }
-.now { display: grid; gap: 8px; }
+.now { display: grid; gap: 8px; min-height: 112px; align-content: start; }
 #pitchState { color: var(--text); font-size: 1.05rem; font-weight: 650; font-variant-numeric: tabular-nums; }
 .formant-state { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; color: var(--muted); font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .formant-cell { display: block; white-space: nowrap; }
+.formant-cell.empty { color: #5d6b7c; }
 .formant-cell small { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; opacity: 0.9; }
 .formant-state.stale, #pitchState.stale { opacity: 0.5; }
 .vowel-canvas { display: block; width: 100%; height: 330px; margin: 10px 0 8px; border: 1px solid #1f2733; border-radius: 8px; }
@@ -124,7 +125,8 @@ dl > div { min-width: 0; padding: 4px 10px; border-left: 2px solid var(--border)
 dt { color: var(--muted); font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
 dd { margin: 4px 0 0; font-size: 0.95rem; font-weight: 650; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 
-.harmonic-toggles { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.harmonic-toggles { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.panel-hint { margin: 0 0 12px; color: var(--muted); font-size: 0.85rem; line-height: 1.45; }
 .harmonic-toggle { min-height: 32px; padding: 0 10px; border-color: var(--harmonic-color); font-size: 0.85rem; }
 .harmonic-toggle[aria-pressed="false"] { color: var(--muted); border-style: dashed; background: transparent; }
 .harmonic-dot { display: inline-block; width: 0.7em; height: 0.7em; margin-right: 0.4em; border-radius: 50%; background: var(--harmonic-color); }

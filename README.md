@@ -36,6 +36,8 @@ If the microphone stays silent on macOS, check **System Settings, Privacy & Secu
    matters: a wrong choice makes formants jump. For an adult male voice use *Low*.
 3. Watch the **spectrogram** (F0 white, F1 red, F2 green, F3 blue) and the **vowel space**: your last second
    leaves a trail, and the nearest indicative Italian vowel target turns green.
+   The **Harmonic guides** panel draws lines at n × F0 on the spectrogram (H1-H8) next to a table of the measured peaks;
+   they are separate from the formant lines, which have their own switch above the spectrogram.
 4. **Calibration and export** (collapsed panel): enter the reading of a sound level meter while a steady sound
    plays to show dB SPL for that microphone, and export the session (time, level, F0, HNR, F1-F4) as CSV.
 5. Settings and the calibration are remembered between runs.
